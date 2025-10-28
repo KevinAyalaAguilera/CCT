@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>CCT - Cruce de Tarifas</title>
+    <link rel="stylesheet" href="CCT.css">
+    <script src="xlsx.full.min.js"></script>
+    <script src="articulos.js"></script>
+</head>
+<body>
+    <main class="container">
+        <h1>Importar datos de artículos de Urbantz</h1>
+
+        <section class="controls">
+            <label class="file-label">
+                Seleccionar fichero .xlsx
+                <input type="file" id="fileInput" accept=".xlsx">
+            </label>
+
+            <div class="tarifas-box">
+                <h2>Tarifas (modificables)</h2>
+                <div id="tarifas">
+                    <label>Sillón: <input type="number" id="t_sillon" value="10" step="0.01"></label>
+                    <label>Sofá: <input type="number" id="t_sofa" value="15" step="0.01"></label>
+                    <label>Chaise / Rinconera: <input type="number" id="t_chais" value="20" step="0.01"></label>
+                    <label>Canapé: <input type="number" id="t_canape" value="25" step="0.01"></label>
+                    <label>Descanso: <input type="number" id="t_descanso" value="30" step="0.01"></label>
+                    <label>Electro: <input type="number" id="t_electro" value="35" step="0.01"></label>
+                    <label>Americano: <input type="number" id="t_americano" value="40" step="0.01"></label>
+                </div>
+            </div>
+
+            <div class="search-filter">
+                <input id="searchInput" type="search" placeholder="Buscar por Identificador, Nombre o Referencia">
+                <select id="categoryFilter">
+                    <option value="all">Filtrar: Todas las categorías</option>
+                    <option value="chais">Chaise / Rinconera</option>
+                    <option value="sofa">Sofá</option>
+                    <option value="sillon">Sillón</option>
+                    <option value="descanso">Descanso</option>
+                    <option value="canape">Canapé</option>
+                    <option value="electro">Electro</option>
+                    <option value="americano">Americano</option>
+                    <option value="none">Sin categoría</option>
+                </select>
+                <button id="exportBtn" disabled>Descargar Excel Resultante</button>
+            </div>
+        </section>
+
+        <section class="table-section">
+            <table id="resultTable">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+            <p id="countInfo" class="count-info"></p>
+        </section>
+    </main>
+
+    <script src="CCT.js"></script>
+</body>
+</html>
