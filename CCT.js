@@ -135,7 +135,7 @@ function handleFile(ev){
 
 // Proceso 1 fila del excel original -> objeto normalizado
 function processRow(row){
-    // Columnas esperadas (nombre exacto según el excel que me diste)
+    const fecha = row["Fecha "] ?? ow["Fecha"] ?? "";
     const identificador = row["Identificador de la tarea"] ?? row["Identificador"] ?? "";
     let pedido_de_ventas = "";
     if (typeof identificador === "string" && identificador.includes("|")) {
@@ -165,6 +165,7 @@ function processRow(row){
     const total = (tarifaUnit === "" || tarifaUnit === undefined) ? "" : (Number(tarifaUnit) * Number(cantidad));
 
     return {
+        "Fecha" : fecha,
         "Identificador de la tarea": identificador,
         "Pedido de ventas": pedido_de_ventas,
         "Artículo – Nombre": articuloNombre,
@@ -198,6 +199,7 @@ function renderTable(data){
     // Cabecera fija
     tableHead.innerHTML = `
         <tr>
+            <th>Fecha</th>
             <th>Identificador de la tarea</th>
             <th>Pedido de ventas</th> 
             <th>Artículo – Nombre</th>
@@ -232,6 +234,7 @@ function applyFiltersAndShow(){
         // Búsqueda en varias columnas
         if (!q) return true;
         const hay = [
+            String(row["Fecha"] || ""),
             String(row["Identificador de la tarea"] || ""),
             String(row["Artículo – Nombre"] || ""),
             String(row["Artículo – Referencia"] || ""),
@@ -245,6 +248,7 @@ function applyFiltersAndShow(){
         const cat = row["Categoría"] || "none";
         const rowClass = `row-${cat === "" ? 'none' : cat}`;
         return `<tr class="${rowClass}">
+            <td>${escapeHtml(row["Fecha"] ?? "")}</td>
             <td>${escapeHtml(row["Identificador de la tarea"] ?? "")}</td>
             <td>${escapeHtml(row["Pedido de ventas"] ?? "")}</td>
             <td>${escapeHtml(row["Artículo – Nombre"] ?? "")}</td>
@@ -292,6 +296,7 @@ exportBtn.addEventListener('click', () => {
         }
         if (!q) return true;
         const hay = [
+            String(row["Fecha"] || ""),
             String(row["Identificador de la tarea"] || ""),
             String(row["Artículo – Nombre"] || ""),
             String(row["Artículo – Referencia"] || ""),
@@ -302,6 +307,7 @@ exportBtn.addEventListener('click', () => {
 
     // Construir hoja: mantener columnas legibles y ordenadas
     const out = exportRows.map(r => ({
+        "Fecha": r["Fecha"],
         "Identificador de la tarea": r["Identificador de la tarea"],
         "Pedido de ventas": r["Pedido de ventas"],
         "Artículo – Nombre": r["Artículo – Nombre"],
@@ -315,7 +321,7 @@ exportBtn.addEventListener('click', () => {
     }));
 
     const ws = XLSX.utils.json_to_sheet(out, { header: [
-        "Identificador de la tarea","Pedido de ventas","Artículo – Nombre","Artículo – Cantidad",
+        "Fecha","Identificador de la tarea","Pedido de ventas","Artículo – Nombre","Artículo – Cantidad",
         "Artículo – Referencia","Retirada","Cruce","Categoría","Tarifa unit.","Total"
     ]});
     const wb = XLSX.utils.book_new();
@@ -326,6 +332,7 @@ exportBtn.addEventListener('click', () => {
 // ---- Comportamiento inicial: muestra cabecera vacía ----
 tableHead.innerHTML = `
     <tr>
+        <th>Fecha</th>
         <th>Identificador de la tarea</th>
         <th>Pedido de ventas</th>
         <th>Artículo – Nombre</th>
