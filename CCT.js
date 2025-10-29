@@ -136,7 +136,10 @@ function handleFile(ev){
 // Proceso 1 fila del excel original -> objeto normalizado
 function processRow(row){
     const fecha = row["Fecha "] ?? ow["Fecha"] ?? "";
+    const expedidor = row["Expedidor"] ?? "";
+    const transportista = row["Transportista"] ?? "";
     const identificador = row["Identificador de la tarea"] ?? row["Identificador"] ?? "";
+    const cuenta = row["Cuenta del cliente"] ?? "";
     let pedido_de_ventas = "";
     if (typeof identificador === "string" && identificador.includes("|")) {
         pedido_de_ventas = identificador.split("|")[0].trim();
@@ -164,16 +167,25 @@ function processRow(row){
     const tarifaUnit = tarifaPorCategoria(categoria);
     const total = (tarifaUnit === "" || tarifaUnit === undefined) ? "" : (Number(tarifaUnit) * Number(cantidad));
 
+    // capturar Modo de Entrega
+    const modoEntrega = row["Modo de Entrega"] ?? row["Modo de entrega"] ?? row["Modo Entrega"] ?? "";
+
+    // Si no se detectó categoría (categoría == ""), usar modoEntrega
+    const categoriaFinal = (categoria === 'none' || categoria === "") ? modoEntrega : categoria;
+
     return {
         "Fecha" : fecha,
+        "Expedidor": expedidor,
+        "Transportista": transportista,
         "Identificador de la tarea": identificador,
+        "Cuenta del cliente": cuenta,
         "Pedido de ventas": pedido_de_ventas,
         "Artículo – Nombre": articuloNombre,
         "Artículo – Cantidad": cantidad,
         "Artículo – Referencia": referencia,
         "Retirada": retirada,
         "Cruce": cruce,
-        "Categoría": categoria === 'none' ? "" : categoria,
+        "Categoría": categoriaFinal,
         "Tarifa unit.": tarifaUnit === "" ? "" : Number(tarifaUnit),
         "Total": total === "" ? "" : Number(total)
     };
@@ -200,7 +212,10 @@ function renderTable(data){
     tableHead.innerHTML = `
         <tr>
             <th>Fecha</th>
+            <th>Expedidor</th>
+            <th>Transportista</th>
             <th>Identificador de la tarea</th>
+            <th>Cuenta del cliente</th>
             <th>Pedido de ventas</th> 
             <th>Artículo – Nombre</th>
             <th>Artículo – Cantidad</th>
@@ -235,7 +250,9 @@ function applyFiltersAndShow(){
         if (!q) return true;
         const hay = [
             String(row["Fecha"] || ""),
+            String(row["Expedidor"] || ""),
             String(row["Identificador de la tarea"] || ""),
+            String(row["Cuenta del cliente"] || ""),
             String(row["Artículo – Nombre"] || ""),
             String(row["Artículo – Referencia"] || ""),
             String(row["Cruce"] || "")
@@ -249,7 +266,10 @@ function applyFiltersAndShow(){
         const rowClass = `row-${cat === "" ? 'none' : cat}`;
         return `<tr class="${rowClass}">
             <td>${escapeHtml(row["Fecha"] ?? "")}</td>
+            <td>${escapeHtml(row["Expedidor"] ?? "")}</td>
+            <td>${escapeHtml(row["Transportista"] ?? "")}</td>
             <td>${escapeHtml(row["Identificador de la tarea"] ?? "")}</td>
+            <td>${escapeHtml(row["Cuenta del cliente"] ?? "")}</td>
             <td>${escapeHtml(row["Pedido de ventas"] ?? "")}</td>
             <td>${escapeHtml(row["Artículo – Nombre"] ?? "")}</td>
             <td>${escapeHtml(row["Artículo – Cantidad"] ?? "")}</td>
@@ -297,7 +317,9 @@ exportBtn.addEventListener('click', () => {
         if (!q) return true;
         const hay = [
             String(row["Fecha"] || ""),
+            String(row["Expedidor"] || ""),
             String(row["Identificador de la tarea"] || ""),
+            String(row["Cuenta del cliente"] || ""),
             String(row["Artículo – Nombre"] || ""),
             String(row["Artículo – Referencia"] || ""),
             String(row["Cruce"] || "")
@@ -308,7 +330,10 @@ exportBtn.addEventListener('click', () => {
     // Construir hoja: mantener columnas legibles y ordenadas
     const out = exportRows.map(r => ({
         "Fecha": r["Fecha"],
+        "Expedidor": r["Expedidor"],
+        "Transportista": r["Transportista"],
         "Identificador de la tarea": r["Identificador de la tarea"],
+        "Cuenta del cliente": r["Cuenta del cliente"],
         "Pedido de ventas": r["Pedido de ventas"],
         "Artículo – Nombre": r["Artículo – Nombre"],
         "Artículo – Cantidad": r["Artículo – Cantidad"],
@@ -321,7 +346,7 @@ exportBtn.addEventListener('click', () => {
     }));
 
     const ws = XLSX.utils.json_to_sheet(out, { header: [
-        "Fecha","Identificador de la tarea","Pedido de ventas","Artículo – Nombre","Artículo – Cantidad",
+        "Fecha", "Expedidor","Transportista","Identificador de la tarea","Cuenta del cliente","Pedido de ventas","Artículo – Nombre","Artículo – Cantidad",
         "Artículo – Referencia","Retirada","Cruce","Categoría","Tarifa unit.","Total"
     ]});
     const wb = XLSX.utils.book_new();
@@ -333,7 +358,10 @@ exportBtn.addEventListener('click', () => {
 tableHead.innerHTML = `
     <tr>
         <th>Fecha</th>
+        <th>Expedidor</th>
+        <th>Transportista</th>
         <th>Identificador de la tarea</th>
+        <th>Cuenta del cliente</th>
         <th>Pedido de ventas</th>
         <th>Artículo – Nombre</th>
         <th>Artículo – Cantidad</th>
