@@ -2,13 +2,13 @@
    Variables globales de tarifa (valores iniciales).
    El usuario puede modificarlas desde la interfaz.
 */
-let t_sillon = Number(document.getElementById?.('t_sillon')?.value) || 39;
-let t_sofa = Number(document.getElementById?.('t_sofa')?.value) || 49;
-let t_chais = Number(document.getElementById?.('t_chais')?.value) || 59;
-let t_canape = Number(document.getElementById?.('t_canape')?.value) || 50;
-let t_descanso = Number(document.getElementById?.('t_descanso')?.value) || 30;
-let t_electro = Number(document.getElementById?.('t_electro')?.value) || 34;
-let t_americano = Number(document.getElementById?.('t_americano')?.value) || 44;
+let t_sillon = Number(document.getElementById?.('t_sillon')?.value) || 20;
+let t_sofa = Number(document.getElementById?.('t_sofa')?.value) || 27;
+let t_chais = Number(document.getElementById?.('t_chais')?.value) || 35;
+let t_canape = Number(document.getElementById?.('t_canape')?.value) || 30;
+let t_descanso = Number(document.getElementById?.('t_descanso')?.value) || 12;
+let t_electro = Number(document.getElementById?.('t_electro')?.value) || 19;
+let t_americano = Number(document.getElementById?.('t_americano')?.value) || 22;
 
 const fileInput = document.getElementById('fileInput');
 const exportBtn = document.getElementById('exportBtn');
