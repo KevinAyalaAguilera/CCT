@@ -167,6 +167,8 @@ function processRow(row){
     const tarifaUnit = tarifaPorCategoria(categoria);
     const total = (tarifaUnit === "" || tarifaUnit === undefined) ? "" : (Number(tarifaUnit) * Number(cantidad));
 
+    const estado = row["Estado"] ?? "";
+
     // capturar Modo de Entrega
     const modoEntrega = row["Modo de Entrega"] ?? row["Modo de entrega"] ?? row["Modo Entrega"] ?? "";
 
@@ -187,7 +189,8 @@ function processRow(row){
         "Cruce": cruce,
         "Categoría": categoriaFinal,
         "Tarifa unit.": tarifaUnit === "" ? "" : Number(tarifaUnit),
-        "Total": total === "" ? "" : Number(total)
+        "Total": total === "" ? "" : Number(total),
+        "Estado": estado
     };
 }
 
@@ -225,6 +228,7 @@ function renderTable(data){
             <th>Categoría</th>
             <th>Tarifa unit.</th>
             <th>Total</th>
+            <th>Estado</th>
         </tr>
     `;
 
@@ -279,6 +283,7 @@ function applyFiltersAndShow(){
             <td>${escapeHtml(row["Categoría"] ?? "")}</td>
             <td>${row["Tarifa unit."] === "" ? "" : Number(row["Tarifa unit."]).toFixed(2)}</td>
             <td>${row["Total"] === "" ? "" : Number(row["Total"]).toFixed(2)}</td>
+            <td>${escapeHtml(row["Estado"] ?? "")}</td>
         </tr>`;
     }).join('');
 
@@ -342,12 +347,13 @@ exportBtn.addEventListener('click', () => {
         "Cruce": r["Cruce"],
         "Categoría": r["Categoría"],
         "Tarifa unit.": r["Tarifa unit."],
-        "Total": r["Total"]
+        "Total": r["Total"],
+        "Estado": r["Estado"]
     }));
 
     const ws = XLSX.utils.json_to_sheet(out, { header: [
         "Fecha", "Expedidor","Transportista","Identificador de la tarea","Cuenta del cliente","Pedido de ventas","Artículo – Nombre","Artículo – Cantidad",
-        "Artículo – Referencia","Retirada","Cruce","Categoría","Tarifa unit.","Total"
+        "Artículo – Referencia","Retirada","Cruce","Categoría","Tarifa unit.","Total", "Estado"
     ]});
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Resultado");
@@ -371,6 +377,7 @@ tableHead.innerHTML = `
         <th>Categoría</th>
         <th>Tarifa unit.</th>
         <th>Total</th>
+        <th>Estado</th>
     </tr>
 `;
 
