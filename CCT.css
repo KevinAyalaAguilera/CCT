@@ -31,7 +31,7 @@ h1{ margin-bottom: 10px; }
     margin-bottom: 16px;
 }
 
-/* Si prefieres 3 columnas: files | tarifas | search+export (ajustable) */
+/* files */
 .files-box{ display:flex; flex-direction:column; gap:8px; }
 .file-label{
     display: inline-block;
@@ -104,8 +104,8 @@ table{
     width: 100%;
     border-collapse: collapse;
     font-size: 14px;
-    table-layout: fixed; /* para que los datos no rompan layout */
-    min-width: 1300px; /* permite scroll horizontal en pantallas pequeñas */
+    table-layout: fixed;
+    min-width: 1500px;
 }
 
 th, td{
@@ -113,7 +113,7 @@ th, td{
     border-bottom: 1px solid #eee;
     text-align: left;
     vertical-align: middle;
-    word-break: break-word; /* evita overflow */
+    word-break: break-word;
 }
 
 thead th{
@@ -129,7 +129,7 @@ td.numeric, th.numeric { text-align: right; }
 /* Count info */
 .count-info{ color: var(--muted); margin-top: 8px; }
 
-/* Category colors (requested shades) */
+/* Category colors */
 .row-prem { background: linear-gradient(90deg, rgba(255,243,205,0.9), transparent); } /* amarillo */
 .row-tima { background: linear-gradient(90deg, rgba(215,235,255,0.9), transparent); } /* azul claro */
 
@@ -148,6 +148,13 @@ td.retirada.not-empty{
     background:#000 !important;
     color:#fff !important;
     font-weight:600;
+}
+
+/* Diferencia: celda con exceso (rojo con texto blanco) */
+td.cell-exceso{
+    background: #c62828 !important;
+    color: #fff !important;
+    font-weight:700;
 }
 
 /* Responsive adjustments */
