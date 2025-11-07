@@ -14,6 +14,16 @@
         <section class="controls">
             <div class="files-box">
                 <label class="file-label">
+                    El primer paso es ir a Urbantz, tareas, y luego arriba la izquierda entrar en la vista de "Artículos".
+                    Luego, añade todas las columnas necesarias y filtra el día de transporte del que quieras sacar los datos.
+                    Exporta el archivo xlsx. Ábrelo con Excel/LibreOffice, copia todos los pedidos de venta y ve a back office.
+                    En back office ve a "lineas de pedidos de ventas abiertas" y pega los pedidos en la columna "Pedidos de venta"
+                    usando la opción "es uno de". Como estará todo facturado, no saldrán apenas líneas. 
+                    Ahora haz click en el icono de filtro a la izquierda y borra el filtro de "Estado de línea"
+                    para que aparezcan las líneas facturadas. Exporta las filas.
+                    Sube los ficheros xlsx que has sacado de Urbantz y de Back office aquí.
+                </label>
+                <label class="file-label">
                     Urbantz - fichero .xlsx (Tareas -> Artículos) (Expedidor, Retirada, Transportista, etc)
                     <input type="file" id="fileInput" accept=".xlsx">
                 </label>
@@ -21,6 +31,7 @@
                     BKO - fichero .xlsx (líneas pedidos de ventas abiertas) (Borrar filtro de "Estado de línea" -"Pedido abierto")
                     <input type="file" id="fileInput2" accept=".xlsx">
                 </label>
+
             </div>
 
             <div class="tarifas-box">
