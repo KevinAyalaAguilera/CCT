@@ -1,4 +1,4 @@
-/* ============ CCT.js (completo) ============ */
+/* ============ CCT.js ============ */
 
 /* --- Tarifas iniciales (se leen del DOM) --- */
 let t_sillon = Number(document.getElementById('t_sillon').value) || 20;
@@ -14,6 +14,7 @@ let t_optima = Number(document.getElementById('t_optima').value) || 0.05;
 /* --- Elementos DOM --- */
 const fileInput = document.getElementById('fileInput');
 const fileInput2 = document.getElementById('fileInput2');
+const fileInput3 = document.getElementById('fileInput3');
 const exportBtn = document.getElementById('exportBtn');
 const tableHead = document.querySelector('#resultTable thead');
 const tableBody = document.querySelector('#resultTable tbody');
@@ -22,9 +23,10 @@ const categoryFilter = document.getElementById('categoryFilter');
 const countInfo = document.getElementById('countInfo');
 
 /* --- Datos en memoria --- */
-let originalRows = [];   // JSON raw del primer excel (para re-procesar si cambian tarifas)
+let originalRows = [];   // rows raw del primer excel (para re-procesar)
 let processedData = [];  // filas procesadas mostradas / exportadas
-let secondData = [];     // JSON del segundo excel
+let secondData = [];     // JSON del segundo excel (Importe neto)
+let thirdData = [];      // JSON del tercer excel (Gastos totales, Factura)
 
 /* ===== utilidades ===== */
 function normalizeText(txt){ return String(txt ?? "").replace(/\s+/g,' ').trim().toUpperCase(); }
@@ -65,9 +67,9 @@ document.getElementById('tarifas').addEventListener('input', () => {
     t_optima = Number(document.getElementById('t_optima').value) || 0;
 
     if(originalRows.length) {
-        // re-procesar desde los originales para aplicar nuevas tarifas
         processedData = originalRows.map(processRow);
         applyBusinessRules();
+        applyPedidoSummaries();
         renderTable();
     }
 });
@@ -83,17 +85,38 @@ fileInput2.addEventListener('change',e=>{
         const wb = XLSX.read(e.target.result,{type:'binary'});
         const sheet = wb.Sheets[wb.SheetNames[0]];
         secondData = XLSX.utils.sheet_to_json(sheet,{defval:""});
-        alert("✅ Segundo archivo cargado correctamente.");
+        alert("✅ Segundo archivo (Importe neto) cargado correctamente.");
     };
     r.readAsBinaryString(file);
 });
 
 /* ===========================
-    CARGA DEL PRIMER EXCEL (solo si hay secondData)
+    CARGA DEL TERCER EXCEL (Gastos / Facturas)
+   =========================== */
+fileInput3.addEventListener('change', e=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const r = new FileReader();
+    r.onload = e=>{
+        const wb = XLSX.read(e.target.result,{type:'binary'});
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        thirdData = XLSX.utils.sheet_to_json(sheet,{defval:""});
+        alert("✅ Tercer archivo (Gastos/Facturas) cargado correctamente.");
+    };
+    r.readAsBinaryString(file);
+});
+
+/* ===========================
+    CARGA DEL PRIMER EXCEL (solo si hay secondData y thirdData)
    =========================== */
 fileInput.addEventListener('change', ()=>{
     if(!secondData.length){
-        alert("⚠️ Debes cargar primero el segundo archivo (BKO) para poder procesar.");
+        alert("⚠️ Debes cargar primero el segundo archivo (Importe neto).");
+        fileInput.value = "";
+        return;
+    }
+    if(!thirdData.length){
+        alert("⚠️ Debes cargar también el tercer archivo (Gastos/Facturas).");
         fileInput.value = "";
         return;
     }
@@ -104,9 +127,10 @@ fileInput.addEventListener('change', ()=>{
         const wb = XLSX.read(e.target.result,{type:'binary'});
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet,{defval:""});
-        originalRows = rows.slice(); // guardamos los raws para re-procesar después
+        originalRows = rows.slice(); // guardamos los raws
         processedData = originalRows.map(processRow);
         applyBusinessRules();
+        applyPedidoSummaries();
         renderTable();
         exportBtn.disabled = false;
     };
@@ -163,7 +187,7 @@ function processRow(row){
         tarifaUnitRaw = tarifaPorCategoria(categoria);
     }
 
-    // Totales y "Tarifa x ud" (cantidad * tarifaUnit)
+    // Tarifa x ud (cantidad * tarifa unit.) y total (tarifaUnit * cantidad)
     const tarifaXudRaw = (tarifaUnitRaw === "" || tarifaUnitRaw === null) ? "" : (Number(cantidad) * Number(tarifaUnitRaw));
     const totalRaw = (tarifaUnitRaw === "" || tarifaUnitRaw === null) ? "" : (Number(tarifaUnitRaw) * Number(cantidad));
 
@@ -182,17 +206,21 @@ function processRow(row){
         "Cuenta": row["Cuenta del cliente"] ?? row["Cuenta"] ?? "",
         "Pedido de ventas": pedido,
         "Producto": producto,
-        "Cantidad": cantidad,
-        "Código": codigo,
-        "Retirada": retirada,
-        "Familia": cruce,
         "Categoría": categoria,
+        "Cantidad": cantidad,
         "Neto / ud": netoPorUd,
         "Importe neto": importeNeto,
+        "Código": codigo,
+        "Familia": cruce,
         "Tarifa unit.": tarifaUnit,
         "Tarifa x ud": tarifaXud,
         "Total": total,
-        "Estado": estado
+        "Retirada": retirada,
+        "Estado": estado,
+        // columnas nuevas (se rellenarán por pedido en applyPedidoSummaries)
+        "Total coste pedido": "",
+        "Gastos facturados SIN IVA": "",
+        "Diferencia": ""
     };
 }
 
@@ -200,7 +228,6 @@ function processRow(row){
     REGLAS POR PEDIDO (ya usan los campos procesados)
    =========================== */
 function applyBusinessRules(){
-    // agrupar por pedido
     const groups = {};
     processedData.forEach(r => {
         const p = r["Pedido de ventas"] ?? "";
@@ -213,41 +240,89 @@ function applyBusinessRules(){
         const hasPREM = rows.some(r => String(r["Categoría"]).includes("PREM"));
         const hasTIMA = rows.some(r => String(r["Categoría"]).includes("TIMA"));
 
-        // 1) Si hay PREM y TIMA -> convertir TIMA a "autocorregido PREM"
         if(hasPREM && hasTIMA){
-            rows.forEach(r => {
+            rows.forEach(r=>{
                 if(String(r["Categoría"]).includes("TIMA")){
                     r["Categoría"] = "autocorregido PREM";
                 }
             });
         }
 
-        // 2) Si hay PREM y no TIMA -> sumar Totales de PREM y aplicar mínimo 95
         if(hasPREM && !hasTIMA){
             let sum = rows.filter(r=>String(r["Categoría"]).includes("PREM"))
-                          .reduce((a,r)=>(a + (Number(r["Total"])||0)),0);
+                          .reduce((a,r)=>a+(Number(r["Total"])||0),0);
             sum = Math.max(sum,95);
-            let first = true;
+            let first=true;
             rows.forEach(r=>{
                 if(String(r["Categoría"]).includes("PREM")){
-                    if(first){ r["Total"] = ceil2(sum); first = false; }
-                    else { r["Total"] = ""; }
+                    r["Total"] = first ? ceil2(sum) : "";
+                    first=false;
                 }
             });
         }
 
-        // 3) Si hay TIMA y no PREM -> sumar Totales de TIMA y aplicar mínimo 40
         if(hasTIMA && !hasPREM){
             let sum = rows.filter(r=>String(r["Categoría"]).includes("TIMA"))
-                          .reduce((a,r)=>(a + (Number(r["Total"])||0)),0);
+                          .reduce((a,r)=>a+(Number(r["Total"])||0),0);
             sum = Math.max(sum,40);
-            let first = true;
+            let first=true;
             rows.forEach(r=>{
                 if(String(r["Categoría"]).includes("TIMA")){
-                    if(first){ r["Total"] = ceil2(sum); first = false; }
-                    else { r["Total"] = ""; }
+                    r["Total"] = first ? ceil2(sum) : "";
+                    first=false;
                 }
             });
+        }
+    }
+}
+
+/* ===========================
+    RESÚMENES POR PEDIDO (Total coste pedido y Gastos facturados SIN IVA)
+   =========================== */
+function applyPedidoSummaries(){
+    // Pre-calcular gastos por pedido desde thirdData
+    const gastosByPedido = {};
+    thirdData.forEach(r=>{
+        const p = String(r["Pedido de ventas"] ?? "").trim();
+        if(!p) return;
+        const gasto = Number(r["Gastos totales"] || r["Gasto total"] || 0) || 0;
+        gastosByPedido[p] = (gastosByPedido[p] || 0) + gasto;
+    });
+    // Agrupar processedData por pedido y calcular sumatorio de Total
+    const groups = {};
+    processedData.forEach(r=>{
+        const p = r["Pedido de ventas"] ?? "";
+        if(!groups[p]) groups[p] = [];
+        groups[p].push(r);
+        // reset fields first
+        r["Total coste pedido"] = "";
+        r["Gastos facturados SIN IVA"] = "";
+        r["Diferencia"] = "";
+    });
+
+    for(const p in groups){
+        const rows = groups[p];
+        // sumar columna "Total" (usar Number(r["Total"]) o 0)
+        const sumaTotal = rows.reduce((a,r)=> a + (Number(r["Total"])||0), 0);
+        const sumaTotalRounded = ceil2(sumaTotal);
+        // gastos facturados desde thirdData
+        const gastosRaw = gastosByPedido[p] || 0;
+        const gastosRounded = gastosRaw === 0 ? 0 : ceil2(gastosRaw);
+
+        // poner en la primera fila del pedido
+        let placed = false;
+        for(const r of rows){
+            if(!placed){
+                r["Total coste pedido"] = sumaTotalRounded;
+                r["Gastos facturados SIN IVA"] = gastosRounded;
+                const diff = ceil2(sumaTotalRounded - gastosRounded);
+                r["Diferencia"] = diff;
+                placed = true;
+            } else {
+                r["Total coste pedido"] = "";
+                r["Gastos facturados SIN IVA"] = "";
+                r["Diferencia"] = "";
+            }
         }
     }
 }
@@ -257,27 +332,14 @@ function applyBusinessRules(){
    =========================== */
 
 function renderTable(){
-    // encabezado con los nombres nuevos y orden solicitados
     tableHead.innerHTML = `
     <tr>
-        <th>Fecha</th>
-        <th>Expedidor</th>
-        <th>Transportista</th>
-        <th>Identificador de la tarea</th>
-        <th>Cuenta</th>
-        <th>Pedido de ventas</th>
-        <th>Producto</th>
-        <th>Categoría</th>
-        <th>Cantidad</th>
-        <th>Neto / ud</th>
-        <th>Importe neto</th>
-        <th>Código</th>
-        <th>Familia</th>
-        <th class="numeric">Tarifa unit.</th>
-        <th class="numeric">Tarifa x ud</th>
-        <th class="numeric">Total</th>
-        <th>Retirada</th>
-        <th>Estado</th>
+        <th>Fecha</th><th>Expedidor</th><th>Transportista</th><th>Identificador de la tarea</th><th>Cuenta</th>
+        <th>Pedido de ventas</th><th>Producto</th><th>Categoría</th><th>Cantidad</th>
+        <th class="numeric">Neto / ud</th><th class="numeric">Importe neto</th><th>Código</th><th>Familia</th>
+        <th class="numeric">Tarifa unit.</th><th class="numeric">Tarifa x ud</th><th class="numeric">Total</th>
+        <th>Retirada</th><th>Estado</th>
+        <th class="numeric">Total coste pedido</th><th class="numeric">Gastos facturados SIN IVA</th><th class="numeric">Diferencia</th>
     </tr>`;
     applyFiltersAndShow();
 }
@@ -287,7 +349,6 @@ function applyFiltersAndShow(){
     const filterCat = categoryFilter.value || "all";
 
     const filtered = processedData.filter(row => {
-        // Filtrar por categoría si aplica
         if(filterCat !== 'all'){
             if(filterCat === 'none'){
                 if((row["Categoría"] || "") !== "") return false;
@@ -295,7 +356,6 @@ function applyFiltersAndShow(){
                 if(row["Categoría"] !== filterCat) return false;
             }
         }
-        // Búsqueda global en valores
         if(!q) return true;
         const hay = [
             String(row["Fecha"] || ""),
@@ -309,10 +369,10 @@ function applyFiltersAndShow(){
         return hay;
     });
 
-    // construir filas con clases para colores por categoría y por PREM/TIMA
+    const fmt = v => (v === "" || v === null || v === undefined) ? "" : Number(v).toFixed(2);
+
     tableBody.innerHTML = filtered.map(row => {
         const cat = String(row["Categoría"] || "").toUpperCase();
-        // elegir clase por prioridad: PREM/TIMA sobre otras
         let rowClass = "row-none";
         if(cat.includes("PREM")) rowClass = "row-prem";
         else if(cat.includes("TIMA")) rowClass = "row-tima";
@@ -321,12 +381,12 @@ function applyFiltersAndShow(){
             rowClass = `row-${base || 'none'}`;
         }
 
-        // Retirada celda especial si no vacía
         const retiradaVal = row["Retirada"] ?? "";
         const retiradaClass = retiradaVal === "" ? "retirada" : "retirada not-empty";
 
-        // numeric formatting: mostrar siempre 2 decimales en importes si no vacíos
-        const fmt = v => (v === "" || v === null || v === undefined) ? "" : Number(v).toFixed(2);
+        // diferencia cell highlight if Total coste pedido > Gastos facturados SIN IVA
+        const diferenciaVal = row["Diferencia"];
+        const diferenciaClass = (Number(row["Total coste pedido"]||0) > Number(row["Gastos facturados SIN IVA"]||0) && diferenciaVal !== "" ) ? "cell-exceso" : "";
 
         return `<tr class="${rowClass}">
             <td>${escapeHtml(row["Fecha"] ?? "")}</td>
@@ -347,6 +407,9 @@ function applyFiltersAndShow(){
             <td class="numeric">${fmt(row["Total"])}</td>
             <td class="${retiradaClass}">${escapeHtml(row["Retirada"] ?? "")}</td>
             <td>${escapeHtml(row["Estado"] ?? "")}</td>
+            <td class="numeric">${fmt(row["Total coste pedido"])}</td>
+            <td class="numeric">${fmt(row["Gastos facturados SIN IVA"])}</td>
+            <td class="numeric ${diferenciaClass}">${fmt(row["Diferencia"])}</td>
         </tr>`;
     }).join('');
 
@@ -367,12 +430,11 @@ searchInput.addEventListener('input', () => applyFiltersAndShow());
 categoryFilter.addEventListener('change', () => applyFiltersAndShow());
 
 /* ===========================
-    EXPORTAR (incluye nuevas columnas, nombres ya renombrados)
+    EXPORTAR (incluye nuevas columnas)
    =========================== */
 exportBtn.addEventListener('click', ()=>{
     if(!processedData.length) return;
 
-    // Construimos hoja con los encabezados exactos que quieres
     const out = processedData.map(r => ({
         "Fecha": r["Fecha"],
         "Expedidor": r["Expedidor"],
@@ -391,12 +453,15 @@ exportBtn.addEventListener('click', ()=>{
         "Tarifa x ud": r["Tarifa x ud"],
         "Total": r["Total"],
         "Retirada": r["Retirada"],
-        "Estado": r["Estado"]
+        "Estado": r["Estado"],
+        "Total coste pedido": r["Total coste pedido"],
+        "Gastos facturados SIN IVA": r["Gastos facturados SIN IVA"],
+        "Diferencia": r["Diferencia"]
     }));
 
     const header = ["Fecha","Expedidor","Transportista","Identificador de la tarea","Cuenta",
-        "Pedido de ventas","Producto","Categoría","Cantidad","Neto / ud","Importe neto","Código",
-        "Familia","Tarifa unit.","Tarifa x ud","Total","Retirada","Estado"];
+        "Pedido de ventas","Producto","Categoría","Cantidad","Neto / ud","Importe neto","Código","Familia",
+        "Tarifa unit.","Tarifa x ud","Total","Retirada","Estado","Total coste pedido","Gastos facturados SIN IVA","Diferencia"];
 
     const ws = XLSX.utils.json_to_sheet(out, { header });
     const wb = XLSX.utils.book_new();
