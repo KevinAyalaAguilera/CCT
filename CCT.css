@@ -7,16 +7,12 @@
     --accent: #2b6cb0;
 }
 
-* {
-font-size: 10px;
-}
-
 /* Layout */
 body{
     font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
     background: var(--bg);
     color: var(--text);
-    margin: 0px;
+    margin: 20px;
 }
 
 .container{
@@ -25,14 +21,18 @@ body{
 }
 
 h1{ margin-bottom: 10px; }
+
+/* Controls: tres columnas (files, tarifas, búsqueda/export) */
 .controls {
     display: grid;
-    grid-template-columns: 1fr 1fr 420px;
+    grid-template-columns: 1fr 420px 420px;
     gap: 16px;
     align-items: start;
     margin-bottom: 16px;
 }
 
+/* Si prefieres 3 columnas: files | tarifas | search+export (ajustable) */
+.files-box{ display:flex; flex-direction:column; gap:8px; }
 .file-label{
     display: inline-block;
     background: var(--card);
@@ -45,13 +45,17 @@ h1{ margin-bottom: 10px; }
 .file-label input[type="file"]{
     display: block;
     margin-top: 8px;
+    width:100%;
 }
 
+/* Tarifas box */
 .tarifas-box{
     background: var(--card);
     padding: 12px;
     border: 1px solid var(--border);
     border-radius: 8px;
+    max-height: 300px;
+    overflow:auto;
 }
 
 #tarifas label{
@@ -61,25 +65,26 @@ h1{ margin-bottom: 10px; }
     gap: 8px;
 }
 
+/* Search + export */
 .search-filter{
     display:flex;
     gap:8px;
     align-items:center;
     margin-top:8px;
+    flex-direction:column;
 }
-
+.search-filter > * { width:100%; }
 #searchInput{
     padding: 8px 10px;
     border-radius: 6px;
     border: 1px solid var(--border);
-    min-width: 260px;
 }
-
 #categoryFilter{
     padding: 8px;
     border-radius: 6px;
     border: 1px solid var(--border);
 }
+#exportBtn{ padding:10px; border-radius:6px; border:1px solid var(--border); background:var(--card); cursor:pointer; }
 
 /* Table */
 .table-section{
@@ -90,38 +95,64 @@ h1{ margin-bottom: 10px; }
     border: 1px solid var(--border);
 }
 
+.table-wrap{
+    width:100%;
+    overflow:auto; /* evita que se salga la tabla */
+}
+
 table{
     width: 100%;
     border-collapse: collapse;
     font-size: 14px;
+    table-layout: fixed; /* para que los datos no rompan layout */
+    min-width: 1300px; /* permite scroll horizontal en pantallas pequeñas */
 }
 
 th, td{
     padding: 8px 10px;
     border-bottom: 1px solid #eee;
     text-align: left;
+    vertical-align: middle;
+    word-break: break-word; /* evita overflow */
 }
 
 thead th{
     background: #f6f8fb;
     position: sticky;
     top: 0;
+    z-index: 2;
 }
 
+/* Alineación numérica */
+td.numeric, th.numeric { text-align: right; }
+
+/* Count info */
 .count-info{ color: var(--muted); margin-top: 8px; }
 
-/* Category colors */
-.row-chais{ background: linear-gradient(90deg, rgba(0,0,255,0.6), transparent); }
-.row-sofa{ background: linear-gradient(90deg, rgba(0,150,255,0.6), transparent); }
-.row-sillon{ background: linear-gradient(90deg, rgba(0,255,255,0.6), transparent); }
-.row-descanso{ background: linear-gradient(90deg, rgba(255,100,0,0.6), transparent); }
-.row-canape{ background: linear-gradient(90deg, rgba(255,50,0,0.6), transparent); }
-.row-electro{ background: linear-gradient(90deg, rgba(100,255,100,0.6), transparent); }
-.row-americano{ background: linear-gradient(90deg, rgba(50,255,50,0.6), transparent); }
+/* Category colors (requested shades) */
+.row-prem { background: linear-gradient(90deg, rgba(255,243,205,0.9), transparent); } /* amarillo */
+.row-tima { background: linear-gradient(90deg, rgba(215,235,255,0.9), transparent); } /* azul claro */
+
+.row-chais{ background: linear-gradient(90deg, rgba(85, 46, 123,0.12), transparent); } /* morado oscuro */
+.row-sofa{ background: linear-gradient(90deg, rgba(140, 75, 170,0.10), transparent); } /* morado medio */
+.row-sillon{ background: linear-gradient(90deg, rgba(200, 150, 220,0.08), transparent); } /* morado claro */
+.row-descanso{ background: linear-gradient(90deg, rgba(255,165,90,0.10), transparent); } /* naranja medio */
+.row-canape{ background: linear-gradient(90deg, rgba(230,120,40,0.10), transparent); } /* naranja oscuro */
+.row-electro{ background: linear-gradient(90deg, rgba(255,200,230,0.10), transparent); } /* rosa claro */
+.row-americano{ background: linear-gradient(90deg, rgba(255,150,200,0.12), transparent); } /* rosa oscuro */
+
 .row-none{ background: transparent; }
 
-/* Responsive */
-@media (max-width: 880px){
+/* Retirada destacado */
+td.retirada.not-empty{
+    background:#000 !important;
+    color:#fff !important;
+    font-weight:600;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1100px){
     .controls { grid-template-columns: 1fr; }
     #tarifas label { font-size: 13px; }
+    table{ min-width: 100%; }
 }
