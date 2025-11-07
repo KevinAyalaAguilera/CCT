@@ -28,6 +28,10 @@ function normalizeText(txt){
     return String(txt ?? "").replace(/\s+/g, ' ').trim().toUpperCase();
 }
 
+function ceil2(n){
+    return Math.ceil(n * 100) / 100;
+}
+
 // Detectar categoría por catálogo
 const CAT = {
     chais:["RINCONERA","CHAISE LONGUE"],
@@ -163,9 +167,9 @@ function processRow(row){
         "Retirada":retirada,
         "Cruce":cruce,
         "Categoría":categoria,
-        "Importe neto":importeNeto,
-        "Tarifa unit.":tarifaUnit===""?"":Number(tarifaUnit),
-        "Total":total===""?"":Number(total),
+        "Importe neto": importeNeto === "" ? "" : ceil2(importeNeto),
+        "Tarifa unit.": tarifaUnit === "" ? "" : ceil2(tarifaUnit),
+        "Total": total === "" ? "" : ceil2(total),
         "Estado":estado
     };
 }
