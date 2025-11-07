@@ -12,14 +12,16 @@
         <h1>Importar datos de artículos de Urbantz</h1>
 
         <section class="controls">
-            <label class="file-label">
-                Primer fichero .xlsx sacado de Urbantz - Artículos
-                <input type="file" id="fileInput" accept=".xlsx">
-            </label>
-            <label class="file-label">
-                Segundo fichero (BKO líneas de pedidos de ventas abiertas quitando filtro de la izquierda de "Estado de línea": "Pedido abierto" para que salgan los facturados) y buscando en la columna "Pedidos de ventas" "es uno de" y pegando los pedidos sacados de Urbantz.
-                <input type="file" id="fileInput2" accept=".xlsx">
-            </label>
+            <div class="files-box">
+                <label class="file-label">
+                    Primer fichero .xlsx (Urbantz - Artículos)
+                    <input type="file" id="fileInput" accept=".xlsx">
+                </label>
+                <label class="file-label">
+                    Segundo fichero (BKO - líneas pedidos / Importe neto)
+                    <input type="file" id="fileInput2" accept=".xlsx">
+                </label>
+            </div>
 
             <div class="tarifas-box">
                 <h2>Tarifas (modificables)</h2>
@@ -37,7 +39,7 @@
             </div>
 
             <div class="search-filter">
-                <input id="searchInput" type="search" placeholder="Buscar por Identificador, Nombre o Referencia">
+                <input id="searchInput" type="search" placeholder="Buscar por Identificador, Producto o Código">
                 <select id="categoryFilter">
                     <option value="all">Filtrar: Todas las categorías</option>
                     <option value="chais">Chaise / Rinconera</option>
@@ -54,10 +56,12 @@
         </section>
 
         <section class="table-section">
-            <table id="resultTable">
-                <thead></thead>
-                <tbody></tbody>
-            </table>
+            <div class="table-wrap">
+                <table id="resultTable">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
             <p id="countInfo" class="count-info"></p>
         </section>
     </main>
