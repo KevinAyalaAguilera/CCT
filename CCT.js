@@ -251,7 +251,7 @@ function applyBusinessRules(){
         if(hasPREM && !hasTIMA){
             let sum = rows.filter(r=>String(r["Categoría"]).includes("PREM"))
                           .reduce((a,r)=>a+(Number(r["Total"])||0),0);
-            sum = Math.max(sum,95);
+            sum = Math.max(sum,55);
             let first=true;
             rows.forEach(r=>{
                 if(String(r["Categoría"]).includes("PREM")){
@@ -264,7 +264,7 @@ function applyBusinessRules(){
         if(hasTIMA && !hasPREM){
             let sum = rows.filter(r=>String(r["Categoría"]).includes("TIMA"))
                           .reduce((a,r)=>a+(Number(r["Total"])||0),0);
-            sum = Math.max(sum,40);
+            sum = Math.max(sum,20);
             let first=true;
             rows.forEach(r=>{
                 if(String(r["Categoría"]).includes("TIMA")){
