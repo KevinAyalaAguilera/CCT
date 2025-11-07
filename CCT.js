@@ -9,6 +9,8 @@ let t_canape = Number(document.getElementById?.('t_canape')?.value) || 30;
 let t_descanso = Number(document.getElementById?.('t_descanso')?.value) || 12;
 let t_electro = Number(document.getElementById?.('t_electro')?.value) || 19;
 let t_americano = Number(document.getElementById?.('t_americano')?.value) || 22;
+let t_premium = Number(document.getElementById?.('t_premium')?.value) || 0.105;
+let t_optima = Number(document.getElementById?.('t_optima')?.value) || 0.05;
 
 const fileInput = document.getElementById('fileInput');
 const exportBtn = document.getElementById('exportBtn');
@@ -18,6 +20,7 @@ const tableBody = resultTable.querySelector('tbody');
 const searchInput = document.getElementById('searchInput');
 const categoryFilter = document.getElementById('categoryFilter');
 const countInfo = document.getElementById('countInfo');
+
 
 let processedData = []; // array de filas procesadas (incluye cruce, categoría, tarifa y total)
 
@@ -105,8 +108,11 @@ document.getElementById('tarifas').addEventListener('input', (e) => {
     t_descanso = Number(document.getElementById('t_descanso').value) || 0;
     t_electro = Number(document.getElementById('t_electro').value) || 0;
     t_americano = Number(document.getElementById('t_americano').value) || 0;
+    t_premium = Number(document.getElementById('t_premium').value) || 0;
+    t_optima = Number(document.getElementById('t_optima').value) || 0;
     // Recalcula totales basados en nueva tarifa y refresca tabla (si ya hay datos)
     if (processedData.length) recalcTotalsAndRender();
+
 });
 
 // ---- Lectura de fichero XLSX ----
