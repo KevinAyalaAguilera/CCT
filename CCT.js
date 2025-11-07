@@ -1,6 +1,6 @@
-/* ============ CCT.js ============ */
+/* ============ CCT.js (completo) ============ */
 
-// Tarifas globales
+/* --- Tarifas iniciales (se leen del DOM) --- */
 let t_sillon = Number(document.getElementById('t_sillon').value) || 20;
 let t_sofa = Number(document.getElementById('t_sofa').value) || 27;
 let t_chais = Number(document.getElementById('t_chais').value) || 35;
@@ -11,6 +11,7 @@ let t_americano = Number(document.getElementById('t_americano').value) || 22;
 let t_premium = Number(document.getElementById('t_premium').value) || 0.105;
 let t_optima = Number(document.getElementById('t_optima').value) || 0.05;
 
+/* --- Elementos DOM --- */
 const fileInput = document.getElementById('fileInput');
 const fileInput2 = document.getElementById('fileInput2');
 const exportBtn = document.getElementById('exportBtn');
@@ -20,19 +21,16 @@ const searchInput = document.getElementById('searchInput');
 const categoryFilter = document.getElementById('categoryFilter');
 const countInfo = document.getElementById('countInfo');
 
-let processedData = [];
-let secondData = []; // Excel 2 cargado
+/* --- Datos en memoria --- */
+let originalRows = [];   // JSON raw del primer excel (para re-procesar si cambian tarifas)
+let processedData = [];  // filas procesadas mostradas / exportadas
+let secondData = [];     // JSON del segundo excel
 
-// Normalizar texto
-function normalizeText(txt){
-    return String(txt ?? "").replace(/\s+/g, ' ').trim().toUpperCase();
-}
+/* ===== utilidades ===== */
+function normalizeText(txt){ return String(txt ?? "").replace(/\s+/g,' ').trim().toUpperCase(); }
+function ceil2(n){ return Math.ceil(Number(n) * 100) / 100; } // redondeo AL ALZA a 2 decimales
 
-function ceil2(n){
-    return Math.ceil(n * 100) / 100;
-}
-
-// Detectar categoría por catálogo
+/* categorias (detección por prefijos) */
 const CAT = {
     chais:["RINCONERA","CHAISE LONGUE"],
     sofa:["SOFA","SOFA CAMA"],
@@ -44,8 +42,7 @@ const CAT = {
 };
 function detectCategory(txt){
     const n = normalizeText(txt);
-    for(const [cat,list] of Object.entries(CAT))
-        if(list.some(x=>n.startsWith(normalizeText(x)))) return cat;
+    for(const [k,list] of Object.entries(CAT)) if(list.some(p => n.startsWith(normalizeText(p)))) return k;
     return "none";
 }
 function tarifaPorCategoria(cat){
@@ -55,169 +52,200 @@ function tarifaPorCategoria(cat){
     }[cat] ?? "";
 }
 
+/* --- Actualizar tarifas desde inputs y re-procesar si ya hay datos --- */
+document.getElementById('tarifas').addEventListener('input', () => {
+    t_sillon = Number(document.getElementById('t_sillon').value) || 0;
+    t_sofa = Number(document.getElementById('t_sofa').value) || 0;
+    t_chais = Number(document.getElementById('t_chais').value) || 0;
+    t_canape = Number(document.getElementById('t_canape').value) || 0;
+    t_descanso = Number(document.getElementById('t_descanso').value) || 0;
+    t_electro = Number(document.getElementById('t_electro').value) || 0;
+    t_americano = Number(document.getElementById('t_americano').value) || 0;
+    t_premium = Number(document.getElementById('t_premium').value) || 0;
+    t_optima = Number(document.getElementById('t_optima').value) || 0;
+
+    if(originalRows.length) {
+        // re-procesar desde los originales para aplicar nuevas tarifas
+        processedData = originalRows.map(processRow);
+        applyBusinessRules();
+        renderTable();
+    }
+});
+
 /* ===========================
-      Cargar segundo Excel
-=========================== */
+    CARGA DEL SEGUNDO EXCEL
+   =========================== */
 fileInput2.addEventListener('change',e=>{
     const file = e.target.files[0];
+    if(!file) return;
     const r = new FileReader();
-    r.onload = e=>{
+    r.onload = e =>{
         const wb = XLSX.read(e.target.result,{type:'binary'});
         const sheet = wb.Sheets[wb.SheetNames[0]];
         secondData = XLSX.utils.sheet_to_json(sheet,{defval:""});
-        alert("✅ Segundo archivo cargado correctamente.\nAhora carga el primero.");
+        alert("✅ Segundo archivo cargado correctamente.");
     };
     r.readAsBinaryString(file);
 });
 
 /* ===========================
-      Cargar primer Excel (solo si ya está el segundo)
-=========================== */
-fileInput.addEventListener('change',()=>{
+    CARGA DEL PRIMER EXCEL (solo si hay secondData)
+   =========================== */
+fileInput.addEventListener('change', ()=>{
     if(!secondData.length){
-        alert("⚠️ Primero debes cargar el segundo archivo (BKO).");
-        fileInput.value="";
+        alert("⚠️ Debes cargar primero el segundo archivo (BKO) para poder procesar.");
+        fileInput.value = "";
         return;
     }
-    loadFirst();
-});
-
-function loadFirst(){
     const file = fileInput.files[0];
+    if(!file) return;
     const r = new FileReader();
     r.onload = e=>{
         const wb = XLSX.read(e.target.result,{type:'binary'});
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet,{defval:""});
-
-        processedData = rows.map(processRow);
+        originalRows = rows.slice(); // guardamos los raws para re-procesar después
+        processedData = originalRows.map(processRow);
         applyBusinessRules();
         renderTable();
         exportBtn.disabled = false;
     };
     r.readAsBinaryString(file);
-}
-
+});
 
 /* ===========================
-      PROCESAR UNA FILA
-=========================== */
+    PROCESS ONE ROW -> objeto final
+   =========================== */
 function processRow(row){
+    // múltiples nombres posibles en Excel original
     const fecha = row["Fecha "] ?? row["Fecha"] ?? "";
     const expedidor = row["Expedidor"] ?? "";
     const transportista = row["Transportista"] ?? "";
 
     const identificador = row["Identificador de la tarea"] ?? row["Identificador"] ?? "";
-    const pedido = identificador.includes("|") ? identificador.split("|")[0].trim() : identificador;
+    const pedido = (typeof identificador === "string" && identificador.includes("|")) ? identificador.split("|")[0].trim() : identificador;
 
-    const articuloNombre =
-        row["Artículo – Nombre"] ??
-        row["Artículo - Nombre"] ??
-        row["Artículo Nombre"] ??
-        row["Artículo"] ?? "";
+    const producto = row["Artículo – Nombre"] ?? row["Artículo - Nombre"] ?? row["Artículo Nombre"] ?? row["Artículo"] ?? "";
 
-    let cantidad =
-        row["Artículo – Cantidad"] ??
-        row["Artículo - Cantidad"] ??
-        row["Artículo Cantidad"] ??
-        row["Cantidad"];
+    let cantidad = row["Artículo – Cantidad"] ?? row["Artículo - Cantidad"] ?? row["Artículo Cantidad"] ?? row["Cantidad"];
     cantidad = Number(cantidad || 1);
 
-    const referencia =
-        row["Artículo – Referencia"] ??
-        row["Artículo - Referencia"] ??
-        row["Referencia"] ?? "";
+    const codigo = row["Artículo – Referencia"] ?? row["Artículo - Referencia"] ?? row["Referencia"] ?? "";
 
     const retirada = row["Retirada"] ?? "";
     const estado = row["Estado"] ?? "";
 
-    // Cruce con articulos.js
-    const refKey = String(referencia).trim();
-    const cruce = articulos[refKey] ?? articulos[Number(refKey)] ?? "";
+    // Cruce con articulos.js (si existe)
+    const refKey = String(codigo).trim();
+    const cruce = (typeof articulos !== 'undefined' && (articulos[refKey] ?? articulos[Number(refKey)])) ?? "";
 
-    // Categoría
+    // categoría detectada o modo de entrega
     let categoria = detectCategory(cruce);
-    if(categoria==="none"||categoria==="") categoria = row["Modo de Entrega"] ?? row["Modo de entrega"] ?? "";
+    if(categoria === "none" || categoria === "") categoria = row["Modo de Entrega"] ?? row["Modo de entrega"] ?? "";
 
-    // Cruce con Excel 2
+    // Cruce con segundo excel (Importe neto)
     const match = secondData.find(r =>
         normalizeText(r["Pedido de ventas"]) === normalizeText(pedido) &&
-        normalizeText(r["Código de artículo"]) === normalizeText(referencia)
+        normalizeText(r["Código de artículo"]) === normalizeText(codigo)
     );
-    const importeNeto = match ? Number(match["Importe neto"])||0 : "";
+    const importeNetoRaw = match ? (Number(match["Importe neto"]) || 0) : "";
 
-    // Tarifa especial
-    let tarifaUnit="";
-    if(String(categoria).includes("PREM") && importeNeto!=="") tarifaUnit=(importeNeto/cantidad)*t_premium;
-    else if(String(categoria).includes("TIMA") && importeNeto!=="") tarifaUnit=(importeNeto/cantidad)*t_optima;
-    else tarifaUnit = tarifaPorCategoria(categoria);
+    // Neto / ud (antes de Importe neto)
+    const netoPorUdRaw = (importeNetoRaw === "" || cantidad === 0) ? "" : (importeNetoRaw / cantidad);
 
-    const total = tarifaUnit==="" ? "" : tarifaUnit*cantidad;
+    // Tarifa unit. => lógica especial si PREM / TIMA y hay importeNeto, sino por categoría
+    let tarifaUnitRaw = "";
+    if(String(categoria).toUpperCase().includes("PREM") && importeNetoRaw !== "") {
+        tarifaUnitRaw = (importeNetoRaw / cantidad) * t_premium;
+    } else if(String(categoria).toUpperCase().includes("TIMA") && importeNetoRaw !== "") {
+        tarifaUnitRaw = (importeNetoRaw / cantidad) * t_optima;
+    } else {
+        tarifaUnitRaw = tarifaPorCategoria(categoria);
+    }
+
+    // Totales y "Tarifa x ud" (cantidad * tarifaUnit)
+    const tarifaXudRaw = (tarifaUnitRaw === "" || tarifaUnitRaw === null) ? "" : (Number(cantidad) * Number(tarifaUnitRaw));
+    const totalRaw = (tarifaUnitRaw === "" || tarifaUnitRaw === null) ? "" : (Number(tarifaUnitRaw) * Number(cantidad));
+
+    // Aplicar redondeo AL ALZA a centésimas para las columnas solicitadas
+    const importeNeto = importeNetoRaw === "" ? "" : ceil2(importeNetoRaw);
+    const netoPorUd = (netoPorUdRaw === "" ? "" : ceil2(netoPorUdRaw));
+    const tarifaUnit = (tarifaUnitRaw === "" ? "" : ceil2(tarifaUnitRaw));
+    const tarifaXud = (tarifaXudRaw === "" ? "" : ceil2(tarifaXudRaw));
+    const total = (totalRaw === "" ? "" : ceil2(totalRaw));
 
     return {
-        "Fecha":fecha,
-        "Expedidor":expedidor,
-        "Transportista":transportista,
-        "Identificador de la tarea":identificador,
-        "Cuenta del cliente":row["Cuenta del cliente"]??"",
-        "Pedido de ventas":pedido,
-        "Artículo – Nombre":articuloNombre,
-        "Artículo – Referencia":referencia,
-        "Retirada":retirada,
-        "Cruce":cruce,
-        "Categoría":categoria,
-        "Importe neto": importeNeto === "" ? "" : ceil2(importeNeto),
-        "Artículo – Cantidad":cantidad,
-        "Tarifa unit.": tarifaUnit === "" ? "" : ceil2(tarifaUnit),
-        "Total": total === "" ? "" : ceil2(total),
-        "Estado":estado
+        "Fecha": fecha,
+        "Expedidor": expedidor,
+        "Transportista": transportista,
+        "Identificador de la tarea": identificador,
+        "Cuenta": row["Cuenta del cliente"] ?? row["Cuenta"] ?? "",
+        "Pedido de ventas": pedido,
+        "Producto": producto,
+        "Cantidad": cantidad,
+        "Código": codigo,
+        "Retirada": retirada,
+        "Familia": cruce,
+        "Categoría": categoria,
+        "Neto / ud": netoPorUd,
+        "Importe neto": importeNeto,
+        "Tarifa unit.": tarifaUnit,
+        "Tarifa x ud": tarifaXud,
+        "Total": total,
+        "Estado": estado
     };
 }
 
 /* ===========================
-      REGLAS POR PEDIDO
-=========================== */
+    REGLAS POR PEDIDO (ya usan los campos procesados)
+   =========================== */
 function applyBusinessRules(){
-    const grouped={};
-    processedData.forEach(r=>{
-        if(!grouped[r["Pedido de ventas"]]) grouped[r["Pedido de ventas"]]=[];
-        grouped[r["Pedido de ventas"]].push(r);
+    // agrupar por pedido
+    const groups = {};
+    processedData.forEach(r => {
+        const p = r["Pedido de ventas"] ?? "";
+        if(!groups[p]) groups[p] = [];
+        groups[p].push(r);
     });
 
-    for(const pedido in grouped){
-        const rows = grouped[pedido];
-        const hasPREM = rows.some(r=>String(r["Categoría"]).includes("PREM"));
-        const hasTIMA = rows.some(r=>String(r["Categoría"]).includes("TIMA"));
+    for(const p in groups){
+        const rows = groups[p];
+        const hasPREM = rows.some(r => String(r["Categoría"]).includes("PREM"));
+        const hasTIMA = rows.some(r => String(r["Categoría"]).includes("TIMA"));
 
+        // 1) Si hay PREM y TIMA -> convertir TIMA a "autocorregido PREM"
         if(hasPREM && hasTIMA){
-            rows.forEach(r=>{
-                if(String(r["Categoría"]).includes("TIMA"))
-                    r["Categoría"]="autocorregido PREM";
-            });
-        }
-
-        if(hasPREM && !hasTIMA){
-            let sum=rows.filter(r=>String(r["Categoría"]).includes("PREM"))
-                        .reduce((a,r)=>a+(Number(r["Total"])||0),0);
-            sum = Math.max(sum,95);
-            let first=true;
-            rows.forEach(r=>{
-                if(String(r["Categoría"]).includes("PREM")){
-                    r["Total"]=first?sum:"";
-                    first=false;
+            rows.forEach(r => {
+                if(String(r["Categoría"]).includes("TIMA")){
+                    r["Categoría"] = "autocorregido PREM";
                 }
             });
         }
 
+        // 2) Si hay PREM y no TIMA -> sumar Totales de PREM y aplicar mínimo 95
+        if(hasPREM && !hasTIMA){
+            let sum = rows.filter(r=>String(r["Categoría"]).includes("PREM"))
+                          .reduce((a,r)=>(a + (Number(r["Total"])||0)),0);
+            sum = Math.max(sum,95);
+            let first = true;
+            rows.forEach(r=>{
+                if(String(r["Categoría"]).includes("PREM")){
+                    if(first){ r["Total"] = ceil2(sum); first = false; }
+                    else { r["Total"] = ""; }
+                }
+            });
+        }
+
+        // 3) Si hay TIMA y no PREM -> sumar Totales de TIMA y aplicar mínimo 40
         if(hasTIMA && !hasPREM){
-            let sum=rows.filter(r=>String(r["Categoría"]).includes("TIMA"))
-                        .reduce((a,r)=>a+(Number(r["Total"])||0),0);
+            let sum = rows.filter(r=>String(r["Categoría"]).includes("TIMA"))
+                          .reduce((a,r)=>(a + (Number(r["Total"])||0)),0);
             sum = Math.max(sum,40);
-            let first=true;
+            let first = true;
             rows.forEach(r=>{
                 if(String(r["Categoría"]).includes("TIMA")){
-                    r["Total"]=first?sum:"";
-                    first=false;
+                    if(first){ r["Total"] = ceil2(sum); first = false; }
+                    else { r["Total"] = ""; }
                 }
             });
         }
@@ -225,51 +253,153 @@ function applyBusinessRules(){
 }
 
 /* ===========================
-      TABLA
-=========================== */
+    RENDER / FILTRADO / EXPORT
+   =========================== */
+
 function renderTable(){
-    tableHead.innerHTML=`
+    // encabezado con los nombres nuevos y orden solicitados
+    tableHead.innerHTML = `
     <tr>
-        <th>Fecha</th><th>Expedidor</th><th>Transportista</th><th>Identificador de la tarea</th><th>Cuenta del cliente</th>
-        <th>Pedido de ventas</th><th>Artículo – Nombre</th><th>Artículo – Referencia</th>
-        <th>Retirada</th><th>Cruce</th><th>Categoría</th><th>Importe neto</th><th>Artículo – Cantidad</th><th>Tarifa unit.</th><th>Total</th><th>Estado</th>
+        <th>Fecha</th>
+        <th>Expedidor</th>
+        <th>Transportista</th>
+        <th>Identificador de la tarea</th>
+        <th>Cuenta</th>
+        <th>Pedido de ventas</th>
+        <th>Producto</th>
+        <th>Categoría</th>
+        <th>Cantidad</th>
+        <th>Neto / ud</th>
+        <th>Importe neto</th>
+        <th>Código</th>
+        <th>Familia</th>
+        <th class="numeric">Tarifa unit.</th>
+        <th class="numeric">Tarifa x ud</th>
+        <th class="numeric">Total</th>
+        <th>Retirada</th>
+        <th>Estado</th>
     </tr>`;
     applyFiltersAndShow();
 }
 
 function applyFiltersAndShow(){
-    const q=normalizeText(searchInput.value);
-    const c=categoryFilter.value;
+    const q = normalizeText(searchInput.value || "");
+    const filterCat = categoryFilter.value || "all";
 
-    const filtered=processedData.filter(r=>{
-        if(c!=="all" && c!=="none" && r["Categoría"]!==c) return false;
-        if(c==="none" && r["Categoría"]!=="") return false;
-        if(q && !Object.values(r).some(v=>normalizeText(v).includes(q))) return false;
-        return true;
+    const filtered = processedData.filter(row => {
+        // Filtrar por categoría si aplica
+        if(filterCat !== 'all'){
+            if(filterCat === 'none'){
+                if((row["Categoría"] || "") !== "") return false;
+            } else {
+                if(row["Categoría"] !== filterCat) return false;
+            }
+        }
+        // Búsqueda global en valores
+        if(!q) return true;
+        const hay = [
+            String(row["Fecha"] || ""),
+            String(row["Expedidor"] || ""),
+            String(row["Identificador de la tarea"] || ""),
+            String(row["Cuenta"] || ""),
+            String(row["Producto"] || ""),
+            String(row["Código"] || ""),
+            String(row["Familia"] || "")
+        ].some(val => normalizeText(val).includes(q));
+        return hay;
     });
 
-    tableBody.innerHTML = filtered.map(r=>`
-<tr>
-<td>${r["Fecha"]}</td><td>${r["Expedidor"]}</td><td>${r["Transportista"]}</td><td>${r["Identificador de la tarea"]}</td>
-<td>${r["Cuenta del cliente"]}</td><td>${r["Pedido de ventas"]}</td><td>${r["Artículo – Nombre"]}</td>
-<td>${r["Artículo – Referencia"]}</td>
-<td>${r["Retirada"]}</td><td>${r["Cruce"]}</td><td>${r["Categoría"]}</td>
-<td>${r["Importe neto"]}</td><td>${r["Artículo – Cantidad"]}</td><td>${r["Tarifa unit."]}</td><td>${r["Total"]}</td><td>${r["Estado"]}</td>
-</tr>`).join('');
+    // construir filas con clases para colores por categoría y por PREM/TIMA
+    tableBody.innerHTML = filtered.map(row => {
+        const cat = String(row["Categoría"] || "").toUpperCase();
+        // elegir clase por prioridad: PREM/TIMA sobre otras
+        let rowClass = "row-none";
+        if(cat.includes("PREM")) rowClass = "row-prem";
+        else if(cat.includes("TIMA")) rowClass = "row-tima";
+        else{
+            const base = String(row["Categoría"]||"").toLowerCase();
+            rowClass = `row-${base || 'none'}`;
+        }
 
-    countInfo.textContent=`Mostrando ${filtered.length} de ${processedData.length} filas`;
+        // Retirada celda especial si no vacía
+        const retiradaVal = row["Retirada"] ?? "";
+        const retiradaClass = retiradaVal === "" ? "retirada" : "retirada not-empty";
+
+        // numeric formatting: mostrar siempre 2 decimales en importes si no vacíos
+        const fmt = v => (v === "" || v === null || v === undefined) ? "" : Number(v).toFixed(2);
+
+        return `<tr class="${rowClass}">
+            <td>${escapeHtml(row["Fecha"] ?? "")}</td>
+            <td>${escapeHtml(row["Expedidor"] ?? "")}</td>
+            <td>${escapeHtml(row["Transportista"] ?? "")}</td>
+            <td>${escapeHtml(row["Identificador de la tarea"] ?? "")}</td>
+            <td>${escapeHtml(row["Cuenta"] ?? "")}</td>
+            <td>${escapeHtml(row["Pedido de ventas"] ?? "")}</td>
+            <td>${escapeHtml(row["Producto"] ?? "")}</td>
+            <td>${escapeHtml(row["Categoría"] ?? "")}</td>
+            <td class="numeric">${escapeHtml(String(row["Cantidad"] ?? ""))}</td>
+            <td class="numeric">${fmt(row["Neto / ud"])}</td>
+            <td class="numeric">${fmt(row["Importe neto"])}</td>
+            <td>${escapeHtml(row["Código"] ?? "")}</td>
+            <td>${escapeHtml(row["Familia"] ?? "")}</td>
+            <td class="numeric">${fmt(row["Tarifa unit."])}</td>
+            <td class="numeric">${fmt(row["Tarifa x ud"])}</td>
+            <td class="numeric">${fmt(row["Total"])}</td>
+            <td class="${retiradaClass}">${escapeHtml(row["Retirada"] ?? "")}</td>
+            <td>${escapeHtml(row["Estado"] ?? "")}</td>
+        </tr>`;
+    }).join('');
+
+    countInfo.textContent = `Mostrando ${filtered.length} de ${processedData.length} filas`;
 }
 
+function escapeHtml(s){
+    return String(s ?? "")
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'","&#39;");
+}
+
+/* --- eventos UI --- */
+searchInput.addEventListener('input', () => applyFiltersAndShow());
+categoryFilter.addEventListener('change', () => applyFiltersAndShow());
+
 /* ===========================
-      EXPORTAR
-=========================== */
-exportBtn.addEventListener('click',()=>{
-    const ws = XLSX.utils.json_to_sheet(processedData,{
-        header:["Fecha","Expedidor","Transportista","Identificador de la tarea","Cuenta del cliente",
-        "Pedido de ventas","Artículo – Nombre","Artículo – Referencia","Retirada",
-        "Cruce","Categoría","Importe neto","Artículo – Cantidad","Tarifa unit.","Total","Estado"]
-    });
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,"Resultado");
-    XLSX.writeFile(wb,"resultado_cruzado.xlsx");
+    EXPORTAR (incluye nuevas columnas, nombres ya renombrados)
+   =========================== */
+exportBtn.addEventListener('click', ()=>{
+    if(!processedData.length) return;
+
+    // Construimos hoja con los encabezados exactos que quieres
+    const out = processedData.map(r => ({
+        "Fecha": r["Fecha"],
+        "Expedidor": r["Expedidor"],
+        "Transportista": r["Transportista"],
+        "Identificador de la tarea": r["Identificador de la tarea"],
+        "Cuenta": r["Cuenta"],
+        "Pedido de ventas": r["Pedido de ventas"],
+        "Producto": r["Producto"],
+        "Categoría": r["Categoría"],
+        "Cantidad": r["Cantidad"],
+        "Neto / ud": r["Neto / ud"],
+        "Importe neto": r["Importe neto"],
+        "Código": r["Código"],
+        "Familia": r["Familia"],
+        "Tarifa unit.": r["Tarifa unit."],
+        "Tarifa x ud": r["Tarifa x ud"],
+        "Total": r["Total"],
+        "Retirada": r["Retirada"],
+        "Estado": r["Estado"]
+    }));
+
+    const header = ["Fecha","Expedidor","Transportista","Identificador de la tarea","Cuenta",
+        "Pedido de ventas","Producto","Categoría","Cantidad","Neto / ud","Importe neto","Código",
+        "Familia","Tarifa unit.","Tarifa x ud","Total","Retirada","Estado"];
+
+    const ws = XLSX.utils.json_to_sheet(out, { header });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Resultado");
+    XLSX.writeFile(wb, "resultado_cruzado.xlsx");
 });
