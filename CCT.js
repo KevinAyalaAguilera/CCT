@@ -162,12 +162,12 @@ function processRow(row){
         "Cuenta del cliente":row["Cuenta del cliente"]??"",
         "Pedido de ventas":pedido,
         "Artículo – Nombre":articuloNombre,
-        "Artículo – Cantidad":cantidad,
         "Artículo – Referencia":referencia,
         "Retirada":retirada,
         "Cruce":cruce,
         "Categoría":categoria,
         "Importe neto": importeNeto === "" ? "" : ceil2(importeNeto),
+        "Artículo – Cantidad":cantidad,
         "Tarifa unit.": tarifaUnit === "" ? "" : ceil2(tarifaUnit),
         "Total": total === "" ? "" : ceil2(total),
         "Estado":estado
@@ -231,8 +231,8 @@ function renderTable(){
     tableHead.innerHTML=`
     <tr>
         <th>Fecha</th><th>Expedidor</th><th>Transportista</th><th>Identificador de la tarea</th><th>Cuenta del cliente</th>
-        <th>Pedido de ventas</th><th>Artículo – Nombre</th><th>Artículo – Cantidad</th><th>Artículo – Referencia</th>
-        <th>Retirada</th><th>Cruce</th><th>Categoría</th><th>Importe neto</th><th>Tarifa unit.</th><th>Total</th><th>Estado</th>
+        <th>Pedido de ventas</th><th>Artículo – Nombre</th><th>Artículo – Referencia</th>
+        <th>Retirada</th><th>Cruce</th><th>Categoría</th><th>Importe neto</th><th>Artículo – Cantidad</th><th>Tarifa unit.</th><th>Total</th><th>Estado</th>
     </tr>`;
     applyFiltersAndShow();
 }
@@ -252,9 +252,9 @@ function applyFiltersAndShow(){
 <tr>
 <td>${r["Fecha"]}</td><td>${r["Expedidor"]}</td><td>${r["Transportista"]}</td><td>${r["Identificador de la tarea"]}</td>
 <td>${r["Cuenta del cliente"]}</td><td>${r["Pedido de ventas"]}</td><td>${r["Artículo – Nombre"]}</td>
-<td>${r["Artículo – Cantidad"]}</td><td>${r["Artículo – Referencia"]}</td>
+<td>${r["Artículo – Referencia"]}</td>
 <td>${r["Retirada"]}</td><td>${r["Cruce"]}</td><td>${r["Categoría"]}</td>
-<td>${r["Importe neto"]}</td><td>${r["Tarifa unit."]}</td><td>${r["Total"]}</td><td>${r["Estado"]}</td>
+<td>${r["Importe neto"]}</td><td>${r["Artículo – Cantidad"]}</td><td>${r["Tarifa unit."]}</td><td>${r["Total"]}</td><td>${r["Estado"]}</td>
 </tr>`).join('');
 
     countInfo.textContent=`Mostrando ${filtered.length} de ${processedData.length} filas`;
@@ -266,8 +266,8 @@ function applyFiltersAndShow(){
 exportBtn.addEventListener('click',()=>{
     const ws = XLSX.utils.json_to_sheet(processedData,{
         header:["Fecha","Expedidor","Transportista","Identificador de la tarea","Cuenta del cliente",
-        "Pedido de ventas","Artículo – Nombre","Artículo – Cantidad","Artículo – Referencia","Retirada",
-        "Cruce","Categoría","Importe neto","Tarifa unit.","Total","Estado"]
+        "Pedido de ventas","Artículo – Nombre","Artículo – Referencia","Retirada",
+        "Cruce","Categoría","Importe neto","Artículo – Cantidad","Tarifa unit.","Total","Estado"]
     });
     const wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,"Resultado");
