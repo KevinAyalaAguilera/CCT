@@ -23,7 +23,7 @@ body{
 h1{ margin-bottom: 10px; }
 .controls {
     display: grid;
-    grid-template-columns: 1fr 420px;
+    grid-template-columns: 1fr 1fr 420px;
     gap: 16px;
     align-items: start;
     margin-bottom: 16px;
