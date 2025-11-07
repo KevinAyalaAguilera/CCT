@@ -20,6 +20,7 @@ const tableBody = resultTable.querySelector('tbody');
 const searchInput = document.getElementById('searchInput');
 const categoryFilter = document.getElementById('categoryFilter');
 const countInfo = document.getElementById('countInfo');
+let secondData = []; // Guardará el Excel 2
 
 
 let processedData = []; // array de filas procesadas (incluye cruce, categoría, tarifa y total)
@@ -58,6 +59,22 @@ const CAT = {
         "SIDE BY SIDE","AMERICANOS 4X4","AMERICANOS","AMERICANOS 4X4" // redundancias por si hay variantes
     ]
 };
+
+document.getElementById('fileInput2').addEventListener('change', handleSecondFile);
+
+function handleSecondFile(ev){
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const workbook = XLSX.read(e.target.result, { type: 'binary' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        secondData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+        alert("Segundo archivo cargado correctamente ✅");
+    };
+    reader.readAsBinaryString(file);
+}
+
 
 // Normaliza texto: elimina múltiples espacios, trim y mayúsculas.
 function normalizeText(txt){
@@ -121,6 +138,7 @@ fileInput.addEventListener('change', handleFile);
 function handleFile(ev){
     const file = ev.target.files && ev.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = (e) => {
         const data = e.target.result;
@@ -132,54 +150,80 @@ function handleFile(ev){
         // defval: para que si falta una celda, nos ponga "" en lugar de omitirla
         const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-        processedData = rows.map(row => processRow(row));
-        renderTable(processedData);
+         processedData = rows.map(row => processRow(row));
+         applyBusinessRules();
+         renderTable(processedData);
+
         exportBtn.disabled = false;
     };
     reader.readAsBinaryString(file);
 }
 
-// Proceso 1 fila del excel original -> objeto normalizado
 function processRow(row){
-    const fecha = row["Fecha "] ?? ow["Fecha"] ?? "";
+    const fecha = row["Fecha "] ?? row["Fecha"] ?? "";
     const expedidor = row["Expedidor"] ?? "";
     const transportista = row["Transportista"] ?? "";
     const identificador = row["Identificador de la tarea"] ?? row["Identificador"] ?? "";
     const cuenta = row["Cuenta del cliente"] ?? "";
+
     let pedido_de_ventas = "";
     if (typeof identificador === "string" && identificador.includes("|")) {
         pedido_de_ventas = identificador.split("|")[0].trim();
     } else {
         pedido_de_ventas = identificador; 
     }
+
     const articuloNombre = row["Artículo – Nombre"] ?? row["Artículo - Nombre"] ?? row["Artículo Nombre"] ?? row["Artículo"] ?? "";
     let cantidad = row["Artículo – Cantidad"] ?? row["Artículo - Cantidad"] ?? row["Artículo Cantidad"] ?? row["Cantidad"];
-    // Si la columna cantidad no existe o está vacía, por defecto 1
     cantidad = (cantidad === "" || cantidad === null || cantidad === undefined) ? 1 : Number(cantidad) || 1;
 
     const referencia = row["Artículo – Referencia"] ?? row["Artículo - Referencia"] ?? row["Referencia"] ?? "";
     const retirada = row["Retirada"] ?? "";
 
-    // Cruce con articulos.js (articulos[referencia])
-    // Aseguramos que al buscar en articulos usamos string sin leading/trailing
+    // Cruce con articulos.js
     const refKey = (referencia === "" || referencia === null) ? "" : String(referencia).trim();
-    // articulos puede tener keys numéricas; convertir a string
-    const cruceRaw = (typeof articulos !== 'undefined' && articulos.hasOwnProperty(refKey)) ? articulos[refKey] : (typeof articulos !== 'undefined' && articulos.hasOwnProperty(Number(refKey)) ? articulos[Number(refKey)] : "");
-
+    const cruceRaw = (typeof articulos !== 'undefined' && articulos.hasOwnProperty(refKey)) 
+                     ? articulos[refKey] 
+                     : (typeof articulos !== 'undefined' && articulos.hasOwnProperty(Number(refKey)) 
+                        ? articulos[Number(refKey)] 
+                        : "");
     const cruce = cruceRaw ?? "";
-
-    // Detectar categoría EXACTA según la lista predefinida
-    const categoria = detectCategory(cruce); // devuelve 'chais','sofa',... o 'none'
-    const tarifaUnit = tarifaPorCategoria(categoria);
-    const total = (tarifaUnit === "" || tarifaUnit === undefined) ? "" : (Number(tarifaUnit) * Number(cantidad));
-
+    const categoriaInicial = detectCategory(cruce);
     const estado = row["Estado"] ?? "";
-
-    // capturar Modo de Entrega
     const modoEntrega = row["Modo de Entrega"] ?? row["Modo de entrega"] ?? row["Modo Entrega"] ?? "";
 
-    // Si no se detectó categoría (categoría == ""), usar modoEntrega
-    const categoriaFinal = (categoria === 'none' || categoria === "") ? modoEntrega : categoria;
+    const categoriaFinal = (categoriaInicial === 'none' || categoriaInicial === "") ? modoEntrega : categoriaInicial;
+
+    // -------------------------------------
+    // 🟡 CRUCE CON SEGUNDO EXCEL
+    // -------------------------------------
+    let importeNeto = "";
+    if (secondData.length){
+        let match = secondData.find(r =>
+            String(r["Pedido de ventas"]).trim() === String(pedido_de_ventas).trim() &&
+            String(r["Código de artículo"]).trim() === String(referencia).trim()
+        );
+        if (match) importeNeto = Number(match["Importe neto"]) || 0;
+    }
+
+    // -------------------------------------
+    // 🟡 CÁLCULO TARIFAS ESPECIALES
+    // -------------------------------------
+    let tarifaUnitCalc = "";
+    let totalCalc = "";
+
+    if (String(categoriaFinal).toUpperCase().includes("PREM") && importeNeto !== ""){
+        tarifaUnitCalc = (importeNeto / cantidad) * t_premium;
+        totalCalc = tarifaUnitCalc * cantidad;
+    }
+    else if (String(categoriaFinal).toUpperCase().includes("TIMA") && importeNeto !== ""){
+        tarifaUnitCalc = (importeNeto / cantidad) * t_optima;
+        totalCalc = tarifaUnitCalc * cantidad;
+    }
+    else {
+        tarifaUnitCalc = tarifaPorCategoria(categoriaFinal) || "";
+        totalCalc = tarifaUnitCalc === "" ? "" : tarifaUnitCalc * cantidad;
+    }
 
     return {
         "Fecha" : fecha,
@@ -194,11 +238,13 @@ function processRow(row){
         "Retirada": retirada,
         "Cruce": cruce,
         "Categoría": categoriaFinal,
-        "Tarifa unit.": tarifaUnit === "" ? "" : Number(tarifaUnit),
-        "Total": total === "" ? "" : Number(total),
+        "Importe neto": importeNeto,
+        "Tarifa unit.": tarifaUnitCalc === "" ? "" : Number(tarifaUnitCalc),
+        "Total": totalCalc === "" ? "" : Number(totalCalc),
         "Estado": estado
     };
 }
+
 
 // Recalcula totales (cuando cambian tarifas)
 function recalcTotalsAndRender(){
@@ -213,6 +259,59 @@ function recalcTotalsAndRender(){
         };
     });
     renderTable(processedData);
+}
+
+function applyBusinessRules(){
+    const grouped = {};
+
+    processedData.forEach(r => {
+        const p = r["Pedido de ventas"];
+        if (!grouped[p]) grouped[p] = [];
+        grouped[p].push(r);
+    });
+
+    for (const pedido in grouped){
+        const rows = grouped[pedido];
+        const hasPREM = rows.some(r => String(r["Categoría"]).includes("PREM"));
+        const hasTIMA = rows.some(r => String(r["Categoría"]).includes("TIMA"));
+
+        // 1) Si hay PREM y TIMA → corregir TIMA → autocorregido PREM
+        if (hasPREM && hasTIMA){
+            rows.forEach(r=>{
+                if (String(r["Categoría"]).includes("TIMA")){
+                    r["Categoría"] = "autocorregido PREM";
+                }
+            });
+        }
+
+        // 2) Si solo hay PREM → sumar total y mínimo 95
+        if (hasPREM && !hasTIMA){
+            let sum = rows.filter(r=>String(r["Categoría"]).includes("PREM"))
+                          .reduce((acc,r)=>acc+(Number(r["Total"])||0),0);
+            if (sum < 95) sum = 95;
+            let first = true;
+            rows.forEach(r=>{
+                if (String(r["Categoría"]).includes("PREM")){
+                    if (first){ r["Total"] = sum; first=false; }
+                    else{ r["Total"] = ""; }
+                }
+            });
+        }
+
+        // 3) Si solo hay TIMA → sumar total y mínimo 40
+        if (hasTIMA && !hasPREM){
+            let sum = rows.filter(r=>String(r["Categoría"]).includes("TIMA"))
+                          .reduce((acc,r)=>acc+(Number(r["Total"])||0),0);
+            if (sum < 40) sum = 40;
+            let first = true;
+            rows.forEach(r=>{
+                if (String(r["Categoría"]).includes("TIMA")){
+                    if (first){ r["Total"] = sum; first=false; }
+                    else{ r["Total"] = ""; }
+                }
+            });
+        }
+    }
 }
 
 // ---- Render de tabla con filtros y búsqueda ----
