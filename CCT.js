@@ -166,6 +166,12 @@ function processRow(row){
     // categoría detectada o modo de entrega
     let categoria = detectCategory(cruce);
     if(categoria === "none" || categoria === "") categoria = row["Modo de Entrega"] ?? row["Modo de entrega"] ?? "";
+    // *** NUEVA REGLA: productos tipo "patas" o "servicio" = categoría "vacío" ***
+    const prodNorm = normalizeText(producto);
+    if (prodNorm.includes("PATAS") || prodNorm.includes("SERVICIO")) {
+        categoria = "vacío";
+    }
+
 
     // Cruce con segundo excel (Importe neto)
     const match = secondData.find(r =>
@@ -179,13 +185,16 @@ function processRow(row){
 
     // Tarifa unit. => lógica especial si PREM / TIMA y hay importeNeto, sino por categoría
     let tarifaUnitRaw = "";
-    if(String(categoria).toUpperCase().includes("PREM") && importeNetoRaw !== "") {
+    if(categoria === "vacío") {
+        tarifaUnitRaw = 0;
+    } else if(String(categoria).toUpperCase().includes("PREM") && importeNetoRaw !== "") {
         tarifaUnitRaw = (importeNetoRaw / cantidad) * t_premium;
     } else if(String(categoria).toUpperCase().includes("TIMA") && importeNetoRaw !== "") {
         tarifaUnitRaw = (importeNetoRaw / cantidad) * t_optima;
     } else {
         tarifaUnitRaw = tarifaPorCategoria(categoria);
     }
+
 
     // Tarifa x ud (cantidad * tarifa unit.) y total (tarifaUnit * cantidad)
     const tarifaXudRaw = (tarifaUnitRaw === "" || tarifaUnitRaw === null) ? "" : (Number(cantidad) * Number(tarifaUnitRaw));
