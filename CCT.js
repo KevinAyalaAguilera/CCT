@@ -288,13 +288,13 @@ function applyPedidoSummaries(){
         const gasto = Number(r["Gastos totales"] || r["Gasto total"] || 0) || 0;
         gastosByPedido[p] = (gastosByPedido[p] || 0) + gasto;
     });
-    // Agrupar processedData por pedido y calcular sumatorio de Total
+
+    // Agrupamos
     const groups = {};
     processedData.forEach(r=>{
         const p = r["Pedido de ventas"] ?? "";
         if(!groups[p]) groups[p] = [];
         groups[p].push(r);
-        // reset fields first
         r["Total coste pedido"] = "";
         r["Gastos facturados SIN IVA"] = "";
         r["Diferencia"] = "";
@@ -302,22 +302,57 @@ function applyPedidoSummaries(){
 
     for(const p in groups){
         const rows = groups[p];
-        // sumar columna "Total" (usar Number(r["Total"]) o 0)
-        const sumaTotal = rows.reduce((a,r)=> a + (Number(r["Total"])||0), 0);
-        const sumaTotalRounded = ceil2(sumaTotal);
-        // gastos facturados desde thirdData
+
+        /* -----------------------------
+           (1) AJUSTE ELECTRO + Tarifa
+        ------------------------------*/
+        const electroRows = rows.filter(r => String(r["Categoría"]).toLowerCase().includes("electro"));
+        if(electroRows.length > 2){
+            // Dejar primeras 2 tal cual, y a partir de la 3ª aplicar tarifa 12€
+            for(let i = 2; i < electroRows.length; i++){
+                const r = electroRows[i];
+                const cantidad = Number(r["Cantidad"]) || 1;
+                const nuevoTotal = ceil2(cantidad * 12);
+                r["Tarifa unit."] = ceil2(12);
+                r["Tarifa x ud"] = ceil2(cantidad * 12);
+                r["Total"] = nuevoTotal;
+            }
+        }
+
+        /* -----------------------------
+           (2) SUMATORIO BASE
+        ------------------------------*/
+        let sumaTotal = rows.reduce((a,r)=> a + (Number(r["Total"])||0), 0);
+
+        /* -----------------------------
+           (3) SUMAS POR RETIRADA
+        ------------------------------*/
+        for(const r of rows){
+            const ret = normalizeText(r["Retirada"]);
+            if(ret.includes("RETIRADA CHAIS") || ret.includes("RINCONERA")) sumaTotal += 15;
+            else if(ret.includes("RETIRADA SOFAS")) sumaTotal += 15;
+            else if(ret.includes("RETIRADA DE SILLON")) sumaTotal += 15;
+            else if(ret.includes("RETIRADA DESCANSO")) sumaTotal += 12;
+        }
+
+        sumaTotal = ceil2(sumaTotal);
+
+        /* -----------------------------
+           (4) GASTOS FACTURADOS
+        ------------------------------*/
         const gastosRaw = gastosByPedido[p] || 0;
         const gastosRounded = gastosRaw === 0 ? 0 : ceil2(gastosRaw);
 
-        // poner en la primera fila del pedido
-        let placed = false;
+        /* -----------------------------
+           (5) Ponemos valores en la primera fila del pedido
+        ------------------------------*/
+        let first = true;
         for(const r of rows){
-            if(!placed){
-                r["Total coste pedido"] = sumaTotalRounded;
+            if(first){
+                r["Total coste pedido"] = sumaTotal;
                 r["Gastos facturados SIN IVA"] = gastosRounded;
-                const diff = ceil2(sumaTotalRounded - gastosRounded);
-                r["Diferencia"] = diff;
-                placed = true;
+                r["Diferencia"] = ceil2(sumaTotal - gastosRounded);
+                first = false;
             } else {
                 r["Total coste pedido"] = "";
                 r["Gastos facturados SIN IVA"] = "";
@@ -326,6 +361,7 @@ function applyPedidoSummaries(){
         }
     }
 }
+
 
 /* ===========================
     RENDER / FILTRADO / EXPORT
