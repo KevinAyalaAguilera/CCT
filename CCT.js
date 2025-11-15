@@ -39,7 +39,7 @@ const CAT = {
     sillon:["SILLON","COMPLEMENTO SOFAS"],
     descanso:["COLCHONES","SOMIERS","BASES"],
     canape:["CANAPE","CANAPÉ"],
-    electro:["LED","OLED","UHD","LAVADORA","FRIGORÍFICO","HORNOS","PLACA","CAMPANA","VINOTECAS"],
+    electro:["HORIZONTAL","CALEFACCIÓN","INTEGRABLE","SECADORA","LED","OLED","UHD","LAVADORA","FRIGORÍFICO","HORNOS","PLACA","CAMPANA","VINOTECAS", "LIBRE INSTALACIÓN"],
     americano:["AMERICANOS","SIDE BY SIDE"]
 };
 function detectCategory(txt){
@@ -187,9 +187,13 @@ function processRow(row){
     let tarifaUnitRaw = "";
     if(categoria === "vacío") {
         tarifaUnitRaw = 0;
-    } else if(String(categoria).toUpperCase().includes("PREM") && importeNetoRaw !== "") {
+    } else if(String(categoria).toUpperCase().includes("ENTREGA PREMIUM") && importeNetoRaw !== "") {
         tarifaUnitRaw = (importeNetoRaw / cantidad) * t_premium;
-    } else if(String(categoria).toUpperCase().includes("TIMA") && importeNetoRaw !== "") {
+    } else if(String(categoria).toUpperCase().includes("WEB - ENT PREMIUM") && importeNetoRaw !== "") {
+        tarifaUnitRaw = (importeNetoRaw / cantidad) * t_premium;
+    } else if(String(categoria).toUpperCase().includes("ENTREGA ÓPTIMA") && importeNetoRaw !== "") {
+        tarifaUnitRaw = (importeNetoRaw / cantidad) * t_optima;
+    } else if(String(categoria).toUpperCase().includes("WEB - ENT OPTIMA") && importeNetoRaw !== "") {
         tarifaUnitRaw = (importeNetoRaw / cantidad) * t_optima;
     } else {
         tarifaUnitRaw = tarifaPorCategoria(categoria);
