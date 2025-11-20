@@ -149,6 +149,10 @@ function processRow(row){
     const identificador = row["Identificador de la tarea"] ?? row["Identificador"] ?? "";
     const pedido = (typeof identificador === "string" && identificador.includes("|")) ? identificador.split("|")[0].trim() : identificador;
 
+    const nombre = row["Representante del cliente"] ?? "";
+    const town = row["Ciudad"] ?? "";
+    const postalcode = row["Código postal"] ?? "";
+
     const producto = row["Artículo – Nombre"] ?? row["Artículo - Nombre"] ?? row["Artículo Nombre"] ?? row["Artículo"] ?? "";
 
     let cantidad = row["Artículo – Cantidad"] ?? row["Artículo - Cantidad"] ?? row["Artículo Cantidad"] ?? row["Cantidad"];
@@ -218,6 +222,9 @@ function processRow(row){
         "Identificador de la tarea": identificador,
         "Cuenta": row["Cuenta del cliente"] ?? row["Cuenta"] ?? "",
         "Pedido de ventas": pedido,
+        "Nombre": nombre,
+        "Ciudad": town,
+        "CP": postalcode,
         "Producto": producto,
         "Categoría": categoria,
         "Cantidad": cantidad,
@@ -491,6 +498,9 @@ exportBtn.addEventListener('click', ()=>{
         "Identificador de la tarea": r["Identificador de la tarea"],
         "Cuenta": r["Cuenta"],
         "Pedido de ventas": r["Pedido de ventas"],
+        "Nombre": r["Nombre"],
+        "Ciudad": r["Ciudad"],
+        "CP": r["CP"],
         "Producto": r["Producto"],
         "Categoría": r["Categoría"],
         "Cantidad": r["Cantidad"],
@@ -509,7 +519,7 @@ exportBtn.addEventListener('click', ()=>{
     }));
 
     const header = ["Fecha","Expedidor","Transportista","Identificador de la tarea","Cuenta",
-        "Pedido de ventas","Producto","Categoría","Cantidad","Neto / ud","Importe neto","Código","Familia",
+        "Pedido de ventas","Nombre","Ciudad","CP","Producto","Categoría","Cantidad","Neto / ud","Importe neto","Código","Familia",
         "Tarifa unit.","Tarifa x ud","Total","Retirada","Estado","Total coste pedido","Gastos facturados SIN IVA","Diferencia"];
 
     const ws = XLSX.utils.json_to_sheet(out, { header });
