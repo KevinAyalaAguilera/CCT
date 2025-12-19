@@ -221,7 +221,7 @@ function processRow(row){
     return {
         "Fecha": fecha,
         "Expedidor": expedidor,
-        "Transportista": transportista,,
+        "Transportista": transportista,
         "Ruta": ruta,
         "Repartidor": repartidor,
         "Identificador de la tarea": identificador,
