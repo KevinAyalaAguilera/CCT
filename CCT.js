@@ -153,6 +153,9 @@ function processRow(row){
     const town = row["Ciudad"] ?? "";
     const postalcode = row["Código postal"] ?? "";
 
+    const repartidor = row["Repartidor"] ?? "";
+    const ruta = row["Ruta"] ?? "";
+
     const producto = row["Artículo – Nombre"] ?? row["Artículo - Nombre"] ?? row["Artículo Nombre"] ?? row["Artículo"] ?? "";
 
     let cantidad = row["Artículo – Cantidad"] ?? row["Artículo - Cantidad"] ?? row["Artículo Cantidad"] ?? row["Cantidad"];
@@ -218,7 +221,9 @@ function processRow(row){
     return {
         "Fecha": fecha,
         "Expedidor": expedidor,
-        "Transportista": transportista,
+        "Transportista": transportista,,
+        "Ruta": ruta,
+        "Repartidor": repartidor,
         "Identificador de la tarea": identificador,
         "Cuenta": row["Cuenta del cliente"] ?? row["Cuenta"] ?? "",
         "Pedido de ventas": pedido,
@@ -390,12 +395,32 @@ function applyPedidoSummaries(){
 function renderTable(){
     tableHead.innerHTML = `
     <tr>
-        <th>Fecha</th><th>Expedidor</th><th>Transportista</th><th>Identificador de la tarea</th><th>Cuenta</th>
-        <th>Pedido de ventas</th><th>Producto</th><th>Categoría</th><th>Cantidad</th>
-        <th class="numeric">Neto / ud</th><th class="numeric">Importe neto</th><th>Código</th><th>Familia</th>
-        <th class="numeric">Tarifa unit.</th><th class="numeric">Tarifa x ud</th><th class="numeric">Total</th>
-        <th>Retirada</th><th>Estado</th>
-        <th class="numeric">Total coste pedido</th><th class="numeric">Gastos facturados SIN IVA</th><th class="numeric">Diferencia</th>
+        <th>Fecha</th>
+        <th>Expedidor</th>
+        <th>Transportista</th>
+        <th>Repartidor</th>
+        <th>Ruta</th>
+        <th>Identificador de la tarea</th>
+        <th>Cuenta</th>
+        <th>Pedido de ventas</th>
+        <th>Nombre</th>
+        <th>Ciudad</th>
+        <th>CP</th>
+        <th>Producto</th>
+        <th>Categoría</th>
+        <th>Cantidad</th>
+        <th class="numeric">Neto / ud</th>
+        <th class="numeric">Importe neto</th>
+        <th>Código</th>
+        <th>Familia</th>
+        <th class="numeric">Tarifa unit.</th>
+        <th class="numeric">Tarifa x ud</th>
+        <th class="numeric">Total</th>
+        <th>Retirada</th>
+        <th>Estado</th>
+        <th class="numeric">Total coste pedido</th>
+        <th class="numeric">Gastos facturados SIN IVA</th>
+        <th class="numeric">Diferencia</th>
     </tr>`;
     applyFiltersAndShow();
 }
@@ -417,6 +442,7 @@ function applyFiltersAndShow(){
             String(row["Fecha"] || ""),
             String(row["Expedidor"] || ""),
             String(row["Identificador de la tarea"] || ""),
+            String(row["Nombre"] || ""),
             String(row["Cuenta"] || ""),
             String(row["Producto"] || ""),
             String(row["Código"] || ""),
@@ -448,9 +474,14 @@ function applyFiltersAndShow(){
             <td>${escapeHtml(row["Fecha"] ?? "")}</td>
             <td>${escapeHtml(row["Expedidor"] ?? "")}</td>
             <td>${escapeHtml(row["Transportista"] ?? "")}</td>
+            <td>${escapeHtml(row["Repartidor"] ?? "")}</td>
+            <td>${escapeHtml(row["Ruta"] ?? "")}</td>
             <td>${escapeHtml(row["Identificador de la tarea"] ?? "")}</td>
             <td>${escapeHtml(row["Cuenta"] ?? "")}</td>
             <td>${escapeHtml(row["Pedido de ventas"] ?? "")}</td>
+            <td>${escapeHtml(row["Nombre"] ?? "")}</td>
+            <td>${escapeHtml(row["Ciudad"] ?? "")}</td>
+            <td>${escapeHtml(row["CP"] ?? "")}</td>
             <td>${escapeHtml(row["Producto"] ?? "")}</td>
             <td>${escapeHtml(row["Categoría"] ?? "")}</td>
             <td class="numeric">${escapeHtml(String(row["Cantidad"] ?? ""))}</td>
@@ -495,6 +526,8 @@ exportBtn.addEventListener('click', ()=>{
         "Fecha": r["Fecha"],
         "Expedidor": r["Expedidor"],
         "Transportista": r["Transportista"],
+        "Repartidor": r["Repartidor"],
+        "Ruta": r["Ruta"],
         "Identificador de la tarea": r["Identificador de la tarea"],
         "Cuenta": r["Cuenta"],
         "Pedido de ventas": r["Pedido de ventas"],
@@ -518,7 +551,7 @@ exportBtn.addEventListener('click', ()=>{
         "Diferencia": r["Diferencia"]
     }));
 
-    const header = ["Fecha","Expedidor","Transportista","Identificador de la tarea","Cuenta",
+    const header = ["Fecha","Expedidor","Transportista","Repartidor","Ruta","Identificador de la tarea","Cuenta",
         "Pedido de ventas","Nombre","Ciudad","CP","Producto","Categoría","Cantidad","Neto / ud","Importe neto","Código","Familia",
         "Tarifa unit.","Tarifa x ud","Total","Retirada","Estado","Total coste pedido","Gastos facturados SIN IVA","Diferencia"];
 
