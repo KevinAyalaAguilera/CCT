@@ -218,6 +218,10 @@ function processRow(row){
     const tarifaXud = (tarifaXudRaw === "" ? "" : ceil2(tarifaXudRaw));
     const total = (totalRaw === "" ? "" : ceil2(totalRaw));
 
+    // Comentarios
+    const comentarioOK = row["Comentario de la entrega"] ?? "";
+    const comentarioKO = row["comentario_entrega_fallida"] ?? "";
+
     return {
         "Fecha": fecha,
         "Expedidor": expedidor,
@@ -245,7 +249,9 @@ function processRow(row){
         // columnas nuevas (se rellenarán por pedido en applyPedidoSummaries)
         "Total coste pedido": "",
         "Gastos facturados SIN IVA": "",
-        "Diferencia": ""
+        "Diferencia": "",
+        "Comentario OK": comentarioOK,
+        "Comentario KO": comentarioKO
     };
 }
 
@@ -421,6 +427,8 @@ function renderTable(){
         <th class="numeric">Total coste pedido</th>
         <th class="numeric">Gastos facturados SIN IVA</th>
         <th class="numeric">Diferencia</th>
+        <th>Comentario OK</th>
+        <th>Comentario KO</th>
     </tr>`;
     applyFiltersAndShow();
 }
@@ -497,6 +505,8 @@ function applyFiltersAndShow(){
             <td class="numeric">${fmt(row["Total coste pedido"])}</td>
             <td class="numeric">${fmt(row["Gastos facturados SIN IVA"])}</td>
             <td class="numeric ${diferenciaClass}">${fmt(row["Diferencia"])}</td>
+            <td>${escapeHtml(row["Comentario OK"] ?? "")}</td>
+            <td>${escapeHtml(row["Comentario KO"] ?? "")}</td>
         </tr>`;
     }).join('');
 
@@ -548,12 +558,14 @@ exportBtn.addEventListener('click', ()=>{
         "Estado": r["Estado"],
         "Total coste pedido": r["Total coste pedido"],
         "Gastos facturados SIN IVA": r["Gastos facturados SIN IVA"],
-        "Diferencia": r["Diferencia"]
+        "Diferencia": r["Diferencia"],
+        "Comentario OK": r["Comentario OK"],
+        "Comentario KO": r["Comentario KO"]
     }));
 
     const header = ["Fecha","Expedidor","Transportista","Repartidor","Ruta","Identificador de la tarea","Cuenta",
         "Pedido de ventas","Nombre","Ciudad","CP","Producto","Categoría","Cantidad","Neto / ud","Importe neto","Código","Familia",
-        "Tarifa unit.","Tarifa x ud","Total","Retirada","Estado","Total coste pedido","Gastos facturados SIN IVA","Diferencia"];
+        "Tarifa unit.","Tarifa x ud","Total","Retirada","Estado","Total coste pedido","Gastos facturados SIN IVA","Diferencia","Comentario OK","Comentario KO"];
 
     const ws = XLSX.utils.json_to_sheet(out, { header });
     const wb = XLSX.utils.book_new();
