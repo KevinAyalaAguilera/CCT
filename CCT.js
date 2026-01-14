@@ -219,7 +219,7 @@ function processRow(row){
     const total = (totalRaw === "" ? "" : ceil2(totalRaw));
 
     // Comentarios
-    const comentarioOK = row["Comentario de la entrega"] ?? "";
+    const comentarioOK = row["Comentario de la entrega "] ?? "";
     const comentarioKO = row["comentario_entrega_fallida"] ?? "";
 
     return {
