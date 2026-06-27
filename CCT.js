@@ -85,7 +85,6 @@ fileInput2.addEventListener('change',e=>{
         const wb = XLSX.read(e.target.result,{type:'binary'});
         const sheet = wb.Sheets[wb.SheetNames[0]];
         secondData = XLSX.utils.sheet_to_json(sheet,{defval:""});
-        alert("✅ Segundo archivo (Importe neto) cargado correctamente.");
     };
     r.readAsBinaryString(file);
 });
@@ -101,7 +100,6 @@ fileInput3.addEventListener('change', e=>{
         const wb = XLSX.read(e.target.result,{type:'binary'});
         const sheet = wb.Sheets[wb.SheetNames[0]];
         thirdData = XLSX.utils.sheet_to_json(sheet,{defval:""});
-        alert("✅ Tercer archivo (Gastos/Facturas) cargado correctamente.");
     };
     r.readAsBinaryString(file);
 });
